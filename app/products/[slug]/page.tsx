@@ -3,7 +3,7 @@ import { ArrowLeft, Heart, Share2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import Link from "next/link"
-import { products } from "@/components/product-list"
+import { products } from "@/lib/products"
 import type { Metadata } from "next"
 
 interface ProductPageProps {
