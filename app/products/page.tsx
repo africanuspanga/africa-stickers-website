@@ -2,7 +2,7 @@ import type { Metadata } from "next"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
 import { FloatingWhatsApp } from "@/components/floating-whatsapp"
-import { ProductsSection } from "@/components/products-section"
+import { ProductList } from "@/components/product-list"
 import { WholesaleSection } from "@/components/wholesale-section"
 
 export const metadata: Metadata = {
@@ -41,7 +41,12 @@ export default function ProductsPage() {
       </section>
 
       {/* Products Content */}
-      <ProductsSection />
+      <section className="py-20 px-6">
+        <div className="max-w-4xl mx-auto">
+          <ProductList showAll={true} />
+        </div>
+      </section>
+
       <WholesaleSection />
 
       <Footer />
