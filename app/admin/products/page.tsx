@@ -8,69 +8,107 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { ArrowLeft, Upload, ImageIcon, Save, Eye, Plus, Edit, Package } from "lucide-react"
-import { productCategories, type Product } from "@/lib/product-data"
+import { products as initialProducts } from "@/lib/products"
+
+type Product = {
+  id: number
+  name: string
+  description: string
+  category: string
+  slug: string
+  imageUrl: string | null
+  variants: Array<{
+    id: string
+    name: string
+    imageUrl: string | null
+    code: string
+  }>
+  featured?: boolean
+  specifications?: {
+    material: string
+    thickness: string
+    adhesive: string
+  }
+}
+
+const productCategories = [
+  { id: "vinyl", name: "Vinyl" },
+  { id: "wrapping", name: "Wrapping" },
+  { id: "reflective", name: "Reflective" },
+  { id: "decorative", name: "Decorative" },
+  { id: "automotive", name: "Automotive" },
+  { id: "transfer", name: "Transfer" },
+  { id: "custom", name: "Custom" },
+  { id: "tools", name: "Tools" },
+]
 
 export default function ProductManagement() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const [showAddProduct, setShowAddProduct] = useState(false)
+  const [selectedCategory, setSelectedCategory] = useState<string>("all")
 
-  // Mock product data - will be replaced with API calls
-  const [products, setProducts] = useState<Product[]>([
-    {
-      id: 1,
-      name: "Color Vinyl Stickers",
-      description: "Stika za vinyl zenye rangi mbalimbali",
-      category: "vinyl",
-      slug: "color-vinyl-stickers",
-      imageUrl: null,
-      featured: true,
-      variants: [
-        { id: "1", name: "Red Vinyl", imageUrl: null, code: "CVS-001" },
-        { id: "2", name: "Blue Vinyl", imageUrl: null, code: "CVS-002" },
-        { id: "3", name: "Gold Vinyl", imageUrl: null, code: "CVS-003" },
-      ],
+  const [products, setProducts] = useState<Product[]>(
+    initialProducts.map((product) => ({
+      ...product,
+      featured: [1, 2, 3, 8, 10].includes(product.id),
+      variants:
+        product.id === 1
+          ? [
+              { id: "1", name: "Red Vinyl", imageUrl: null, code: "CVS-001" },
+              { id: "2", name: "Blue Vinyl", imageUrl: null, code: "CVS-002" },
+              { id: "3", name: "Gold Vinyl", imageUrl: null, code: "CVS-003" },
+            ]
+          : product.id === 2
+            ? [
+                { id: "4", name: "Carbon Fiber", imageUrl: null, code: "WS-001" },
+                { id: "5", name: "Matte Black", imageUrl: null, code: "WS-002" },
+              ]
+            : product.id === 3
+              ? [
+                  { id: "6", name: "White Reflective", imageUrl: null, code: "RS-001" },
+                  { id: "7", name: "Yellow Reflective", imageUrl: null, code: "RS-002" },
+                ]
+              : [],
       specifications: {
-        material: "Premium Vinyl",
-        thickness: "0.1mm",
+        material: "Premium Quality",
+        thickness: "Standard",
         adhesive: "Permanent",
       },
-    },
-    {
-      id: 2,
-      name: "Wrapping Stickers",
-      description: "Stika za kufunika magari au vifaa kwa mwonekano wa kisasa",
-      category: "wrapping",
-      slug: "wrapping-stickers",
-      imageUrl: null,
-      featured: true,
-      variants: [
-        { id: "4", name: "Carbon Fiber", imageUrl: null, code: "WS-001" },
-        { id: "5", name: "Matte Black", imageUrl: null, code: "WS-002" },
-      ],
-      specifications: {
-        material: "Cast Vinyl",
-        thickness: "0.15mm",
-        adhesive: "Removable",
-      },
-    },
-  ])
+    })),
+  )
 
-  const handleImageUpload = (productId: number, variantId: string | null, file: File) => {
+  const filteredProducts =
+    selectedCategory === "all" ? products : products.filter((product) => product.category === selectedCategory)
+
+  const handleImageUpload = async (productId: number, variantId: string | null, file: File) => {
     setIsLoading(true)
     console.log(`[v0] Uploading image for product ${productId}, variant ${variantId}:`, file.name)
 
-    // Simulate upload delay
-    setTimeout(() => {
-      setIsLoading(false)
-      const imageUrl = URL.createObjectURL(file)
+    try {
+      const formData = new FormData()
+      formData.append("file", file)
+
+      const folder = variantId ? "africa-stickers/products/variants" : "africa-stickers/products/main-images"
+      formData.append("folder", folder)
+
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      })
+
+      if (!response.ok) {
+        throw new Error("Upload failed")
+      }
+
+      const data = await response.json()
+      const imageUrl = data.secure_url
 
       setProducts((prev) =>
         prev.map((product) => {
           if (product.id === productId) {
             if (variantId) {
-              // Update variant image
               return {
                 ...product,
                 variants: product.variants.map((variant) =>
@@ -78,14 +116,20 @@ export default function ProductManagement() {
                 ),
               }
             } else {
-              // Update main product image
               return { ...product, imageUrl }
             }
           }
           return product
         }),
       )
-    }, 1000)
+
+      console.log("[v0] Upload successful:", imageUrl)
+    } catch (error) {
+      console.error("[v0] Upload error:", error)
+      alert("Upload failed. Please try again.")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const handleSaveChanges = () => {
@@ -99,42 +143,42 @@ export default function ProductManagement() {
 
   const ProductCard = ({ product }: { product: Product }) => (
     <Card className="hover:shadow-lg transition-shadow">
-      <CardHeader>
-        <div className="flex items-start justify-between">
-          <div>
-            <CardTitle className="text-lg">{product.name}</CardTitle>
-            <CardDescription className="text-sm">{product.description}</CardDescription>
+      <CardHeader className="pb-3">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+          <div className="flex-1 min-w-0">
+            <CardTitle className="text-base sm:text-lg truncate">{product.name}</CardTitle>
+            <CardDescription className="text-xs sm:text-sm line-clamp-2">
+              High-quality {product.category} products for professional use
+            </CardDescription>
           </div>
-          <Badge variant={product.featured ? "default" : "secondary"}>
+          <Badge variant={product.featured ? "default" : "secondary"} className="self-start">
             {product.featured ? "Featured" : "Standard"}
           </Badge>
         </div>
       </CardHeader>
-      <CardContent>
-        {/* Main Product Image */}
-        <div className="aspect-video bg-muted rounded-lg overflow-hidden mb-4 relative group">
+      <CardContent className="space-y-4">
+        <div className="aspect-video bg-muted rounded-lg overflow-hidden relative group">
           <img
-            src={product.imageUrl || "/placeholder.svg?height=200&width=300"}
+            src={product.imageUrl || `/placeholder.svg?height=200&width=300&query=${product.name}`}
             alt={product.name}
             className="w-full h-full object-cover"
           />
           <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
             <div className="flex gap-2">
-              <Button size="sm" variant="secondary" className="gap-1">
+              <Button size="sm" variant="secondary" className="gap-1 text-xs">
                 <Eye className="w-3 h-3" />
-                Preview
+                <span className="hidden sm:inline">Preview</span>
               </Button>
-              <Button size="sm" variant="secondary" className="gap-1">
+              <Button size="sm" variant="secondary" className="gap-1 text-xs">
                 <Edit className="w-3 h-3" />
-                Edit
+                <span className="hidden sm:inline">Edit</span>
               </Button>
             </div>
           </div>
         </div>
 
-        {/* Upload Main Image */}
-        <div className="mb-4">
-          <Label className="text-xs">Main Product Image / Picha Kuu ya Bidhaa</Label>
+        <div>
+          <Label className="text-xs font-medium">Main Product Image</Label>
           <div className="flex gap-2 mt-1">
             <Input
               type="file"
@@ -145,31 +189,31 @@ export default function ProductManagement() {
                   handleImageUpload(product.id, null, file)
                 }
               }}
-              className="text-xs"
+              className="text-xs flex-1"
+              disabled={isLoading}
             />
-            <Button size="sm" variant="outline" className="gap-1 text-xs bg-transparent">
+            <Button size="sm" variant="outline" className="gap-1 text-xs bg-transparent shrink-0" disabled={isLoading}>
               <Upload className="w-3 h-3" />
-              Upload
+              <span className="hidden sm:inline">Upload</span>
             </Button>
           </div>
         </div>
 
-        {/* Product Variants */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <Label className="text-sm font-medium">Product Variants ({product.variants.length})</Label>
+            <Label className="text-sm font-medium">Variants ({product.variants.length})</Label>
             <Button size="sm" variant="outline" className="gap-1 text-xs bg-transparent">
               <Plus className="w-3 h-3" />
-              Add Variant
+              <span className="hidden sm:inline">Add</span>
             </Button>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {product.variants.map((variant) => (
               <div key={variant.id} className="border rounded-lg p-3 space-y-2">
                 <div className="aspect-square bg-muted rounded overflow-hidden relative group">
                   <img
-                    src={variant.imageUrl || "/placeholder.svg?height=100&width=100"}
+                    src={variant.imageUrl || `/placeholder.svg?height=100&width=100&query=${variant.name}`}
                     alt={variant.name}
                     className="w-full h-full object-cover"
                   />
@@ -181,7 +225,7 @@ export default function ProductManagement() {
                   </div>
                 </div>
                 <div>
-                  <p className="text-xs font-medium">{variant.name}</p>
+                  <p className="text-xs font-medium truncate">{variant.name}</p>
                   <p className="text-xs text-muted-foreground">{variant.code}</p>
                 </div>
                 <Input
@@ -194,14 +238,14 @@ export default function ProductManagement() {
                     }
                   }}
                   className="text-xs h-8"
+                  disabled={isLoading}
                 />
               </div>
             ))}
           </div>
         </div>
 
-        {/* Actions */}
-        <div className="flex gap-2 mt-4">
+        <div className="flex gap-2">
           <Button
             onClick={() => setSelectedProduct(product)}
             variant="outline"
@@ -209,16 +253,18 @@ export default function ProductManagement() {
             className="flex-1 gap-1 text-xs"
           >
             <Edit className="w-3 h-3" />
-            Edit Details
+            <span className="hidden sm:inline">Edit Details</span>
+            <span className="sm:hidden">Edit</span>
           </Button>
           <Button
             onClick={() => router.push(`/products/${product.slug}`)}
             variant="outline"
             size="sm"
-            className="gap-1 text-xs"
+            className="gap-1 text-xs shrink-0"
           >
             <Eye className="w-3 h-3" />
-            View Live
+            <span className="hidden sm:inline">View Live</span>
+            <span className="sm:hidden">View</span>
           </Button>
         </div>
       </CardContent>
@@ -227,90 +273,110 @@ export default function ProductManagement() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <header className="border-b bg-card">
-        <div className="flex h-16 items-center justify-between px-6">
-          <div className="flex items-center gap-4">
-            <Button onClick={() => router.push("/admin")} variant="ghost" size="sm" className="gap-2">
+        <div className="flex h-auto sm:h-16 items-center justify-between p-4 sm:px-6 gap-4">
+          <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
+            <Button onClick={() => router.push("/admin")} variant="ghost" size="sm" className="gap-2 shrink-0">
               <ArrowLeft className="w-4 h-4" />
-              Back to Dashboard
+              <span className="hidden sm:inline">Back to Dashboard</span>
+              <span className="sm:hidden">Back</span>
             </Button>
-            <div>
-              <h1 className="text-xl font-bold">Product Management</h1>
-              <p className="text-sm text-muted-foreground">Usimamizi wa Bidhaa</p>
+            <div className="min-w-0">
+              <h1 className="text-lg sm:text-xl font-bold truncate">Product Management</h1>
             </div>
           </div>
-          <div className="flex gap-2">
-            <Button onClick={() => setShowAddProduct(true)} variant="outline" className="gap-2">
+          <div className="flex gap-2 shrink-0">
+            <Button onClick={() => setShowAddProduct(true)} variant="outline" className="gap-2 text-xs sm:text-sm">
               <Plus className="w-4 h-4" />
-              Add Product
+              <span className="hidden sm:inline">Add Product</span>
+              <span className="sm:hidden">Add</span>
             </Button>
-            <Button onClick={handleSaveChanges} disabled={isLoading} className="gap-2 bg-primary hover:bg-primary/90">
+            <Button
+              onClick={handleSaveChanges}
+              disabled={isLoading}
+              className="gap-2 bg-primary hover:bg-primary/90 text-xs sm:text-sm"
+            >
               <Save className="w-4 h-4" />
-              {isLoading ? "Saving..." : "Save Changes"}
+              {isLoading ? "Saving..." : "Save"}
             </Button>
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="p-6">
+      <main className="p-4 sm:p-6">
         <div className="mb-6">
-          <h2 className="text-2xl font-bold mb-2">Manage Product Images & Details</h2>
-          <p className="text-muted-foreground">Upload and manage images for your products and their variants.</p>
-          <p className="text-muted-foreground text-sm">
-            Pakia na simamia picha za bidhaa zako na aina zake mbalimbali.
+          <h2 className="text-xl sm:text-2xl font-bold mb-2">Manage Product Images & Details</h2>
+          <p className="text-sm sm:text-base text-muted-foreground">
+            Upload and manage images for your products and their variants.
           </p>
         </div>
 
-        {/* Product Categories Filter */}
         <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="text-lg">Filter by Category / Chuja kwa Aina</CardTitle>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base sm:text-lg">Filter by Category</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-2">
-              <Button variant="outline" size="sm" className="bg-primary text-primary-foreground">
+              <Button
+                variant={selectedCategory === "all" ? "default" : "outline"}
+                size="sm"
+                className="text-xs"
+                onClick={() => setSelectedCategory("all")}
+              >
                 All Products ({products.length})
               </Button>
               {productCategories.map((category) => (
-                <Button key={category.id} variant="outline" size="sm">
-                  {category.name}
+                <Button
+                  key={category.id}
+                  variant={selectedCategory === category.id ? "default" : "outline"}
+                  size="sm"
+                  className="text-xs bg-transparent"
+                  onClick={() => setSelectedCategory(category.id)}
+                >
+                  {category.name} ({products.filter((p) => p.category === category.id).length})
                 </Button>
               ))}
             </div>
           </CardContent>
         </Card>
 
-        {/* Products Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {products.map((product) => (
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
+          {filteredProducts.map((product) => (
             <ProductCard key={product.id} product={product} />
           ))}
         </div>
 
-        {/* Bulk Actions */}
+        {filteredProducts.length === 0 && (
+          <div className="text-center py-12">
+            <Package className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-medium mb-2">No products found</h3>
+            <p className="text-muted-foreground">No products match the selected category.</p>
+          </div>
+        )}
+
         <Card className="mt-8">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
               <Package className="w-5 h-5 text-primary" />
-              Bulk Actions / Vitendo vya Wingi
+              Bulk Actions
             </CardTitle>
-            <CardDescription>Perform actions on multiple products at once</CardDescription>
+            <CardDescription className="text-xs sm:text-sm">
+              Perform actions on multiple products at once
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex gap-4">
-              <Button variant="outline" className="gap-2 bg-transparent">
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
+              <Button variant="outline" className="gap-2 bg-transparent text-xs sm:text-sm">
                 <Upload className="w-4 h-4" />
                 Bulk Image Upload
               </Button>
-              <Button variant="outline" className="gap-2 bg-transparent">
+              <Button variant="outline" className="gap-2 bg-transparent text-xs sm:text-sm">
                 <ImageIcon className="w-4 h-4" />
                 Generate Variants
               </Button>
-              <Button variant="outline" className="gap-2 bg-transparent">
+              <Button variant="outline" className="gap-2 bg-transparent text-xs sm:text-sm">
                 <Save className="w-4 h-4" />
-                Export Product Data
+                Export Data
               </Button>
             </div>
           </CardContent>
