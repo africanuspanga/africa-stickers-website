@@ -45,7 +45,7 @@ export default function ProductPage({ params }: ProductPageProps) {
             <Link href="/products">
               <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
                 <ArrowLeft className="w-4 h-4 mr-2" />
-                Back / Rudi
+                Back
               </Button>
             </Link>
 
@@ -92,16 +92,16 @@ export default function ProductPage({ params }: ProductPageProps) {
         <Tabs defaultValue="details" className="w-full">
           <TabsList className="grid w-full grid-cols-2 mb-6">
             <TabsTrigger value="details" className="text-sm">
-              Product Details / Kuhusu Bidhaa Hii
+              Product Details
             </TabsTrigger>
             <TabsTrigger value="parameters" className="text-sm">
-              Product Parameters / Vipimo vya Bidhaa
+              Parameters
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="details" className="space-y-4">
             <div className="bg-white rounded-lg border border-border p-6">
-              <h3 className="font-semibold text-lg mb-4">About This Product / Kuhusu Bidhaa Hii</h3>
+              <h3 className="font-semibold text-lg mb-4">About This Product</h3>
               <p className="text-muted-foreground leading-relaxed mb-4">{product.description}</p>
               <p className="text-muted-foreground leading-relaxed">
                 High-quality {product.name.toLowerCase()} perfect for professional applications. Manufactured with
@@ -112,22 +112,22 @@ export default function ProductPage({ params }: ProductPageProps) {
 
           <TabsContent value="parameters" className="space-y-4">
             <div className="bg-white rounded-lg border border-border p-6">
-              <h3 className="font-semibold text-lg mb-4">Specifications / Vipimo</h3>
+              <h3 className="font-semibold text-lg mb-4">Specifications</h3>
               <div className="space-y-3">
                 <div className="flex justify-between py-2 border-b border-border">
-                  <span className="text-muted-foreground">Category / Aina:</span>
+                  <span className="text-muted-foreground">Category:</span>
                   <span className="font-medium capitalize">{product.category}</span>
                 </div>
                 <div className="flex justify-between py-2 border-b border-border">
-                  <span className="text-muted-foreground">Material / Nyenzo:</span>
+                  <span className="text-muted-foreground">Material:</span>
                   <span className="font-medium">Premium Vinyl</span>
                 </div>
                 <div className="flex justify-between py-2 border-b border-border">
-                  <span className="text-muted-foreground">Durability / Uimara:</span>
+                  <span className="text-muted-foreground">Durability:</span>
                   <span className="font-medium">5-7 Years</span>
                 </div>
                 <div className="flex justify-between py-2">
-                  <span className="text-muted-foreground">Application / Matumizi:</span>
+                  <span className="text-muted-foreground">Application:</span>
                   <span className="font-medium">Indoor & Outdoor</span>
                 </div>
               </div>
@@ -137,8 +137,8 @@ export default function ProductPage({ params }: ProductPageProps) {
 
         {/* Product Variants Grid */}
         <div className="mt-8">
-          <h3 className="font-semibold text-lg mb-4">Available Variants / Aina Zinazopatikana</h3>
-          <div className="grid grid-cols-3 gap-4">
+          <h3 className="font-semibold text-lg mb-4">Available Variants</h3>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
             {[1, 2, 3, 4, 5, 6].map((variant) => (
               <div
                 key={variant}
@@ -152,11 +152,11 @@ export default function ProductPage({ params }: ProductPageProps) {
 
         {/* Contact CTA */}
         <div className="mt-8 bg-gradient-to-r from-yellow-400 to-yellow-600 rounded-lg p-6 text-center">
-          <h3 className="font-bold text-xl text-black mb-2">Ready to Order? / Tayari Kuagiza?</h3>
+          <h3 className="font-bold text-xl text-black mb-2">Ready to Order?</h3>
           <p className="text-black/80 mb-4">Contact us for pricing and custom orders</p>
           <Link href="https://wa.me/255123456789" target="_blank">
             <Button size="lg" className="bg-black text-white hover:bg-black/90">
-              PATA BEI
+              GET QUOTE
             </Button>
           </Link>
         </div>
