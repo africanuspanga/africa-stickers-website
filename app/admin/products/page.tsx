@@ -4,7 +4,6 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { ArrowLeft, Upload, ImageIcon, Save, Eye, Plus, Edit, Package } from "lucide-react"
@@ -93,16 +92,24 @@ export default function ProductManagement() {
       const folder = variantId ? "africa-stickers/products/variants" : "africa-stickers/products/main-images"
       formData.append("folder", folder)
 
+      console.log("[v0] Making upload request to /api/upload")
+
       const response = await fetch("/api/upload", {
         method: "POST",
         body: formData,
       })
 
+      console.log("[v0] Upload response status:", response.status)
+
       if (!response.ok) {
-        throw new Error("Upload failed")
+        const errorData = await response.json()
+        console.error("[v0] Upload failed with error:", errorData)
+        throw new Error(errorData.error || "Upload failed")
       }
 
       const data = await response.json()
+      console.log("[v0] Upload response data:", data)
+
       const imageUrl = data.secure_url
 
       setProducts((prev) =>
@@ -124,9 +131,10 @@ export default function ProductManagement() {
       )
 
       console.log("[v0] Upload successful:", imageUrl)
+      alert("Image uploaded successfully!")
     } catch (error) {
       console.error("[v0] Upload error:", error)
-      alert("Upload failed. Please try again.")
+      alert(`Upload failed: ${error instanceof Error ? error.message : "Unknown error"}`)
     } finally {
       setIsLoading(false)
     }
@@ -180,7 +188,7 @@ export default function ProductManagement() {
         <div>
           <Label className="text-xs font-medium">Main Product Image</Label>
           <div className="flex gap-2 mt-1">
-            <Input
+            <input
               type="file"
               accept="image/*"
               onChange={(e) => {
@@ -189,12 +197,19 @@ export default function ProductManagement() {
                   handleImageUpload(product.id, null, file)
                 }
               }}
-              className="text-xs flex-1"
+              className="hidden"
               disabled={isLoading}
+              id={`main-image-${product.id}`}
             />
-            <Button size="sm" variant="outline" className="gap-1 text-xs bg-transparent shrink-0" disabled={isLoading}>
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-1 text-xs bg-transparent flex-1"
+              disabled={isLoading}
+              onClick={() => document.getElementById(`main-image-${product.id}`)?.click()}
+            >
               <Upload className="w-3 h-3" />
-              <span className="hidden sm:inline">Upload</span>
+              {isLoading ? "Uploading..." : "Choose & Upload Image"}
             </Button>
           </div>
         </div>
@@ -228,7 +243,7 @@ export default function ProductManagement() {
                   <p className="text-xs font-medium truncate">{variant.name}</p>
                   <p className="text-xs text-muted-foreground">{variant.code}</p>
                 </div>
-                <Input
+                <input
                   type="file"
                   accept="image/*"
                   onChange={(e) => {
@@ -237,9 +252,20 @@ export default function ProductManagement() {
                       handleImageUpload(product.id, variant.id, file)
                     }
                   }}
-                  className="text-xs h-8"
+                  className="hidden"
                   disabled={isLoading}
+                  id={`variant-image-${product.id}-${variant.id}`}
                 />
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1 text-xs w-full bg-transparent"
+                  disabled={isLoading}
+                  onClick={() => document.getElementById(`variant-image-${product.id}-${variant.id}`)?.click()}
+                >
+                  <Upload className="w-2 h-2" />
+                  {isLoading ? "Uploading..." : "Upload"}
+                </Button>
               </div>
             ))}
           </div>

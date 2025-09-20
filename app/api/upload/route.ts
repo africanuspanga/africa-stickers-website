@@ -1,21 +1,25 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { validateImageFile, type CloudinaryFolder } from "@/lib/cloudinary"
+import crypto from "crypto"
 
 export async function POST(request: NextRequest) {
   try {
+    console.log("[v0] Upload API called")
     const formData = await request.formData()
     const file = formData.get("file") as File
-    const folder = formData.get("folder") as CloudinaryFolder
-    const productId = formData.get("productId") as string
-    const variantId = formData.get("variantId") as string
+    const folder = (formData.get("folder") as CloudinaryFolder) || "africa-stickers/products/main-images"
 
     if (!file) {
+      console.log("[v0] No file provided")
       return NextResponse.json({ error: "No file provided" }, { status: 400 })
     }
+
+    console.log("[v0] File received:", file.name, file.type, file.size)
 
     // Validate file
     const validation = validateImageFile(file)
     if (!validation.valid) {
+      console.log("[v0] File validation failed:", validation.error)
       return NextResponse.json({ error: validation.error }, { status: 400 })
     }
 
@@ -29,6 +33,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Cloudinary configuration missing" }, { status: 500 })
     }
 
+    console.log("[v0] Cloudinary config found:", { cloudName, apiKey: apiKey.substring(0, 6) + "..." })
+
     // Convert file to base64 for upload
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
@@ -36,32 +42,27 @@ export async function POST(request: NextRequest) {
     const dataURI = `data:${file.type};base64,${base64}`
 
     const timestamp = Math.round(Date.now() / 1000)
-    let publicId = `${folder}/${timestamp}_${file.name.replace(/\.[^/.]+$/, "")}`
+    const publicId = `${timestamp}_${file.name.replace(/\.[^/.]+$/, "").replace(/[^a-zA-Z0-9_-]/g, "_")}`
 
-    // Add product/variant specific naming
-    if (productId) {
-      publicId = variantId
-        ? `${folder}/${productId}_variant_${variantId}_${timestamp}`
-        : `${folder}/${productId}_main_${timestamp}`
-    }
-
-    // Create signature for authentication
-    const crypto = require("crypto")
     const paramsToSign = {
       folder: folder,
       public_id: publicId,
       timestamp: timestamp,
     }
 
+    console.log("[v0] Params to sign:", paramsToSign)
+
     const sortedParams = Object.keys(paramsToSign)
       .sort()
-      .map((key) => `${key}=${paramsToSign[key]}`)
+      .map((key) => `${key}=${paramsToSign[key as keyof typeof paramsToSign]}`)
       .join("&")
 
-    const signature = crypto
-      .createHash("sha1")
-      .update(sortedParams + apiSecret)
-      .digest("hex")
+    const stringToSign = sortedParams + apiSecret
+    console.log("[v0] String to sign:", stringToSign)
+
+    const signature = crypto.createHash("sha1").update(stringToSign).digest("hex")
+
+    console.log("[v0] Generated signature:", signature)
 
     // Prepare form data for Cloudinary
     const cloudinaryFormData = new FormData()
@@ -80,10 +81,12 @@ export async function POST(request: NextRequest) {
       body: cloudinaryFormData,
     })
 
+    console.log("[v0] Cloudinary response status:", cloudinaryResponse.status)
+
     if (!cloudinaryResponse.ok) {
       const error = await cloudinaryResponse.text()
       console.error("[v0] Cloudinary upload error:", error)
-      return NextResponse.json({ error: "Failed to upload image to Cloudinary" }, { status: 500 })
+      return NextResponse.json({ error: `Failed to upload image to Cloudinary: ${error}` }, { status: 500 })
     }
 
     const result = await cloudinaryResponse.json()
@@ -100,6 +103,6 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error("[v0] Upload API error:", error)
-    return NextResponse.json({ error: "Internal server error during upload" }, { status: 500 })
+    return NextResponse.json({ error: `Internal server error during upload: ${error}` }, { status: 500 })
   }
 }

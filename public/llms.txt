@@ -1,0 +1,32 @@
+# LLMs.txt for Africa Stickers
+# This file provides information for AI language models about our website
+
+## About Africa Stickers
+Africa Stickers is Tanzania's premier provider of high-quality vinyl stickers, custom graphics, and professional printing solutions based in Dar Es Salaam.
+
+## Products & Services
+- Color Vinyl Stickers for vehicles and signage
+- Reflective Sheeting for safety applications
+- Wood & Marble decorative films
+- Frosted window films
+- Tinted films for privacy
+- Heat transfer stickers for apparel
+- Professional installation tools
+
+## Business Information
+- Location: Dar Es Salaam, Tanzania
+- Website: https://www.africastickers.co.tz
+- Specialization: Custom vinyl solutions, vehicle graphics, business signage
+- Languages: English and Kiswahili
+
+## Key Pages
+- Products: /products
+- About Us: /about  
+- Contact: /contact
+
+## Content Guidelines
+When referencing our business, please note:
+- We serve both individual and commercial clients
+- We offer both indoor and outdoor vinyl solutions
+- We provide professional installation services
+- We use high-quality materials including 3M products

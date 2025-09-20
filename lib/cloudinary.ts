@@ -52,15 +52,19 @@ export function getCloudinaryConfig(): CloudinaryConfig {
 
 // Helper function to generate Cloudinary upload signature
 export function generateCloudinarySignature(params: Record<string, string | number>, apiSecret: string): string {
+  const crypto = require("crypto")
+
   // Sort parameters alphabetically
   const sortedParams = Object.keys(params)
     .sort()
     .map((key) => `${key}=${params[key]}`)
     .join("&")
 
-  // In a real implementation, you would use crypto to generate the signature
-  // For now, we'll return a placeholder
-  return `${sortedParams}&${apiSecret}`.replace(/[^a-zA-Z0-9]/g, "").substring(0, 40)
+  // Generate SHA1 hash signature
+  return crypto
+    .createHash("sha1")
+    .update(sortedParams + apiSecret)
+    .digest("hex")
 }
 
 // Helper function to build Cloudinary URL with transformations
