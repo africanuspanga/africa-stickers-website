@@ -40,18 +40,19 @@ export default function AboutPage() {
             <div>
               <h2 className="text-3xl font-bold text-black mb-6">Our Story</h2>
               <p className="text-gray-700 mb-4">
-                Africa Stickers has been serving the Dar Es Salaam community with high-quality sticker and vinyl
-                solutions. Located in the heart of Kariakoo at Lumumba & Tandamti Street, we have built a reputation for
-                excellence and reliability in the printing and graphics industry.
+                Africa Stickers is Tanzania's home for premium vinyl and sticker solutions. From our vibrant shop in
+                Kariakoo, right at Lumumba & Tandamti Street, we've earned a trusted name in quality, creativity, and
+                dependable service.
               </p>
               <p className="text-gray-700 mb-4">
-                We specialize in custom stickers, vinyl cutting, vehicle wrapping, and a wide range of printing
-                services. Our commitment to quality and customer satisfaction has made us the go-to choice for both
-                individual customers and wholesale clients across Tanzania.
+                We go beyond selling stickers: we bring ideas to life. From custom vinyl graphics and event branding to
+                professional vehicle wraps and wholesale supplies, we help businesses and creatives stand out. Every
+                roll, every cut, and every design is handled with care to ensure your project shines.
               </p>
               <p className="text-gray-700">
-                Whether you need stickers for your business, vehicle graphics, or custom designs, we have the expertise
-                and equipment to deliver exceptional results every time.
+                Our commitment is simple: exceptional quality, reliable delivery, and designs that turn heads. Whether
+                you're a small business, a designer, or a reseller looking for bulk materials, Africa Stickers is your
+                partner in creating lasting impressions across Tanzania and beyond.
               </p>
             </div>
             <div className="rounded-lg overflow-hidden shadow-lg">
@@ -74,14 +75,14 @@ export default function AboutPage() {
             <div className="order-1 lg:order-2">
               <h2 className="text-3xl font-bold text-black mb-6">Our Mission</h2>
               <p className="text-gray-700 mb-4">
-                To provide high-quality, affordable sticker and vinyl solutions that help our customers express their
-                creativity, promote their businesses, and achieve their goals. We are committed to delivering
-                exceptional service with fast turnaround times and competitive pricing.
+                At Africa Stickers, our mission is to empower businesses, creatives, and event planners with premium
+                vinyl and sticker solutions that transform ideas into powerful visuals. We aim to make high-quality
+                materials and expert guidance accessible to everyone, from small shops to large companies, across
+                Tanzania and neighboring countries.
               </p>
               <p className="text-gray-700 mb-6">
-                We believe in building long-term partnerships with our clients, offering reliable products and services
-                that exceed expectations. Our team is dedicated to staying current with the latest technology and
-                techniques in the printing and graphics industry.
+                We are committed to reliable service, exceptional quality, and innovation, ensuring every sticker, wrap,
+                or graphic we provide adds value, beauty, and durability.
               </p>
             </div>
           </div>

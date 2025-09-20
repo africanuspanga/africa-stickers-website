@@ -101,19 +101,28 @@ export default function ProductManagement() {
 
       console.log("[v0] Upload response status:", response.status)
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        console.error("[v0] Upload failed with error:", errorData)
-        throw new Error(errorData.error || "Upload failed")
+      let data
+      const contentType = response.headers.get("content-type")
+
+      if (contentType && contentType.includes("application/json")) {
+        data = await response.json()
+      } else {
+        const errorText = await response.text()
+        console.error("[v0] Non-JSON response received:", errorText)
+        data = { error: `Server returned non-JSON response: ${response.status} ${response.statusText}` }
       }
 
-      const data = await response.json()
+      if (!response.ok) {
+        console.error("[v0] Upload failed with error:", data)
+        throw new Error(data.error || `Upload failed with status ${response.status}`)
+      }
+
       console.log("[v0] Upload response data:", data)
 
       const imageUrl = data.secure_url
 
-      setProducts((prev) =>
-        prev.map((product) => {
+      setProducts((prev) => {
+        const updatedProducts = prev.map((product) => {
           if (product.id === productId) {
             if (variantId) {
               return {
@@ -127,8 +136,15 @@ export default function ProductManagement() {
             }
           }
           return product
-        }),
-      )
+        })
+
+        // Persist to localStorage so public pages can access
+        if (typeof window !== "undefined") {
+          localStorage.setItem("africa-stickers-products", JSON.stringify(updatedProducts))
+        }
+
+        return updatedProducts
+      })
 
       console.log("[v0] Upload successful:", imageUrl)
       alert("Image uploaded successfully!")

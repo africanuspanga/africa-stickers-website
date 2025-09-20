@@ -12,6 +12,22 @@ interface ProductPageProps {
   }
 }
 
+function getProductImages(slug: string) {
+  if (typeof window !== "undefined") {
+    const storedProducts = localStorage.getItem("africa-stickers-products")
+    if (storedProducts) {
+      try {
+        const products = JSON.parse(storedProducts)
+        const product = products.find((p: any) => p.slug === slug)
+        return product?.imageUrl || null
+      } catch (error) {
+        console.error("Error parsing stored products:", error)
+      }
+    }
+  }
+  return null
+}
+
 export async function generateMetadata({ params }: ProductPageProps): Promise<Metadata> {
   const product = products.find((p) => p.slug === params.slug)
 
@@ -35,6 +51,9 @@ export default function ProductPage({ params }: ProductPageProps) {
   if (!product) {
     notFound()
   }
+
+  const dynamicImageUrl = getProductImages(params.slug)
+  const productImageUrl = dynamicImageUrl || product.imageUrl
 
   return (
     <div className="min-h-screen bg-background">
@@ -62,10 +81,14 @@ export default function ProductPage({ params }: ProductPageProps) {
       </div>
 
       {/* Product Image Carousel */}
-      <div className="relative h-80 bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center">
-        <div className="w-32 h-32 bg-black/20 rounded-lg flex items-center justify-center">
-          <div className="w-16 h-16 bg-black/30 rounded"></div>
-        </div>
+      <div className="relative h-80 bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center overflow-hidden">
+        {productImageUrl ? (
+          <img src={productImageUrl || "/placeholder.svg"} alt={product.name} className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-32 h-32 bg-black/20 rounded-lg flex items-center justify-center">
+            <div className="w-16 h-16 bg-black/30 rounded"></div>
+          </div>
+        )}
 
         {/* Pagination dots */}
         <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2">
@@ -358,6 +381,46 @@ export default function ProductPage({ params }: ProductPageProps) {
                       Frosted stickers designed for windows, offices, and decorative signage. They provide privacy
                       without blocking light and add a modern, stylish appearance. UV-resistant and easy to clean for
                       long-lasting performance.
+                    </p>
+                  </div>
+                </div>
+              ) : product.slug === "wrapping-stickers" ? (
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="font-medium text-base mb-2 flex items-center gap-2">🇹🇿 Kiswahili</h4>
+                    <p className="text-muted-foreground leading-relaxed">
+                      Stika hizi hutumika kufunika magari na pikipiki kwa mapambo na ulinzi. Hutoa mwonekano mpya bila
+                      kupaka rangi upya, hulinda rangi asilia dhidi ya mikwaruzo midogo na mwanga mkali wa jua. Ni njia
+                      rahisi na ya kitaalamu kubadilisha muonekano wa gari au pikipiki yako kwa muda mrefu.
+                    </p>
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-base mb-2 flex items-center gap-2">🇬🇧 English</h4>
+                    <p className="text-muted-foreground leading-relaxed">
+                      These stickers are used to wrap cars and motorcycles for decoration and protection. They give a
+                      fresh look without repainting, protect the original paint from minor scratches and UV rays, and
+                      provide a professional and durable makeover for your vehicle.
+                    </p>
+                  </div>
+                </div>
+              ) : product.slug === "gold-chrome-mirror" ? (
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="font-medium text-base mb-2 flex items-center gap-2">🇹🇿 Kiswahili</h4>
+                    <p className="text-muted-foreground leading-relaxed">
+                      Stika hizi zenye mwonekano wa dhahabu au kioo hukonga macho na kuleta hisia ya kifahari.
+                      Zinatumika zaidi katika events (mashughuli za kifahari, harusi, au maonyesho), mapambo ya
+                      furniture, na sehemu nyingine maalum kama mabango ya matangazo ya ndani au mapambo ya maduka. Uso
+                      wake wenye kutafakari mwanga huleta athari ya kioo halisi na kufanya mapambo yaonekane ya kipekee.
+                    </p>
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-base mb-2 flex items-center gap-2">🇬🇧 English</h4>
+                    <p className="text-muted-foreground leading-relaxed">
+                      These gold and chrome mirror-finish stickers add a luxurious and elegant touch. They are mainly
+                      used for events (weddings, parties, or exhibitions), decorating furniture, and special areas like
+                      indoor signage or boutique displays. Their reflective surface creates a true mirror effect, giving
+                      decorations a premium and unique look.
                     </p>
                   </div>
                 </div>
@@ -680,6 +743,54 @@ export default function ProductPage({ params }: ProductPageProps) {
                   <div className="flex justify-between py-2">
                     <span className="text-muted-foreground">Application:</span>
                     <span className="font-medium">Windows, Office Glass, Signage</span>
+                  </div>
+                </div>
+              ) : product.slug === "wrapping-stickers" ? (
+                <div className="space-y-3">
+                  <div className="flex justify-between py-2 border-b border-border">
+                    <span className="text-muted-foreground">Roll Size:</span>
+                    <span className="font-medium">1.52m x 28m & 1.52m x 18m</span>
+                  </div>
+                  <div className="flex justify-between py-2 border-b border-border">
+                    <span className="text-muted-foreground">Material:</span>
+                    <span className="font-medium">High-quality Automotive Vinyl with Air-release Technology</span>
+                  </div>
+                  <div className="flex justify-between py-2 border-b border-border">
+                    <span className="text-muted-foreground">Durability:</span>
+                    <span className="font-medium">5–7 Years Outdoor Lifespan</span>
+                  </div>
+                  <div className="flex justify-between py-2 border-b border-border">
+                    <span className="text-muted-foreground">Finish Options:</span>
+                    <span className="font-medium">Glossy, Matte, Satin, Carbon-fiber, Brushed Metal</span>
+                  </div>
+                  <div className="flex justify-between py-2">
+                    <span className="text-muted-foreground">Application:</span>
+                    <span className="font-medium">Heat-assisted Installation for Smooth, Bubble-free Wrapping</span>
+                  </div>
+                </div>
+              ) : product.slug === "gold-chrome-mirror" ? (
+                <div className="space-y-3">
+                  <div className="flex justify-between py-2 border-b border-border">
+                    <span className="text-muted-foreground">Roll Size:</span>
+                    <span className="font-medium">1.22m x 50m (Standard)</span>
+                  </div>
+                  <div className="flex justify-between py-2 border-b border-border">
+                    <span className="text-muted-foreground">Material:</span>
+                    <span className="font-medium">Premium Reflective Vinyl with Mirror Finish</span>
+                  </div>
+                  <div className="flex justify-between py-2 border-b border-border">
+                    <span className="text-muted-foreground">Durability:</span>
+                    <span className="font-medium">3–5 Years (Indoor/Special Use)</span>
+                  </div>
+                  <div className="flex justify-between py-2 border-b border-border">
+                    <span className="text-muted-foreground">Finish Options:</span>
+                    <span className="font-medium">Gold Mirror, Silver Chrome, Rose Gold</span>
+                  </div>
+                  <div className="flex justify-between py-2">
+                    <span className="text-muted-foreground">Application:</span>
+                    <span className="font-medium">
+                      Best on Flat or Slightly Curved Surfaces, Easy to Cut and Apply for Creative Decorations
+                    </span>
                   </div>
                 </div>
               ) : (
