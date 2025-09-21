@@ -19,7 +19,7 @@ function getProductImages(slug: string) {
       try {
         const products = JSON.parse(storedProducts)
         const product = products.find((p: any) => p.slug === slug)
-        return product?.imageUrl || null
+        return product || null
       } catch (error) {
         console.error("Error parsing stored products:", error)
       }
@@ -52,8 +52,8 @@ export default function ProductPage({ params }: ProductPageProps) {
     notFound()
   }
 
-  const dynamicImageUrl = getProductImages(params.slug)
-  const productImageUrl = dynamicImageUrl || product.imageUrl
+  const storedProduct = getProductImages(params.slug)
+  const productImageUrl = storedProduct?.imageUrl || product.imageUrl
 
   return (
     <div className="min-h-screen bg-background">
@@ -81,12 +81,14 @@ export default function ProductPage({ params }: ProductPageProps) {
       </div>
 
       {/* Product Image Carousel */}
-      <div className="relative h-80 bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center overflow-hidden">
+      <div className="relative h-80 bg-muted flex items-center justify-center overflow-hidden">
         {productImageUrl ? (
           <img src={productImageUrl || "/placeholder.svg"} alt={product.name} className="w-full h-full object-cover" />
         ) : (
-          <div className="w-32 h-32 bg-black/20 rounded-lg flex items-center justify-center">
-            <div className="w-16 h-16 bg-black/30 rounded"></div>
+          <div className="w-full h-full bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center">
+            <div className="w-32 h-32 bg-black/20 rounded-lg flex items-center justify-center">
+              <div className="w-16 h-16 bg-black/30 rounded"></div>
+            </div>
           </div>
         )}
 
@@ -821,14 +823,33 @@ export default function ProductPage({ params }: ProductPageProps) {
         <div className="mt-8">
           <h3 className="font-semibold text-lg mb-4">Available Variants</h3>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-            {[1, 2, 3, 4, 5, 6].map((variant) => (
-              <div
-                key={variant}
-                className="aspect-square bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-lg flex items-center justify-center"
-              >
-                <div className="w-8 h-8 bg-black/20 rounded"></div>
-              </div>
-            ))}
+            {storedProduct?.variants?.length > 0
+              ? storedProduct.variants.map((variant: any) => (
+                  <div
+                    key={variant.id}
+                    className="aspect-square bg-muted rounded-lg flex items-center justify-center overflow-hidden"
+                  >
+                    {variant.imageUrl ? (
+                      <img
+                        src={variant.imageUrl || "/placeholder.svg"}
+                        alt={variant.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center">
+                        <div className="w-8 h-8 bg-black/20 rounded"></div>
+                      </div>
+                    )}
+                  </div>
+                ))
+              : [1, 2, 3, 4, 5, 6].map((variant) => (
+                  <div
+                    key={variant}
+                    className="aspect-square bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-lg flex items-center justify-center"
+                  >
+                    <div className="w-8 h-8 bg-black/20 rounded"></div>
+                  </div>
+                ))}
           </div>
         </div>
 

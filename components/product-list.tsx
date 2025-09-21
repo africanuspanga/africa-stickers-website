@@ -1,18 +1,54 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Filter, Heart } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
-import { products } from "@/lib/products"
+import { products as staticProducts } from "@/lib/products"
 
 interface ProductListProps {
   showAll?: boolean
 }
 
+interface Product {
+  id: number
+  name: string
+  description: string
+  category: string
+  slug: string
+  imageUrl: string | null
+  variants: any[]
+}
+
 export function ProductList({ showAll = true }: ProductListProps) {
   const [sortBy, setSortBy] = useState("name")
   const [showFilters, setShowFilters] = useState(false)
+  const [products, setProducts] = useState<Product[]>(staticProducts)
+
+  useEffect(() => {
+    const loadProducts = () => {
+      try {
+        const savedProducts = localStorage.getItem("products")
+        if (savedProducts) {
+          const parsedProducts = JSON.parse(savedProducts)
+
+          // Merge saved products with static products
+          const mergedProducts = staticProducts.map((staticProduct) => {
+            const savedProduct = parsedProducts.find((p: Product) => p.id === staticProduct.id)
+            return savedProduct ? { ...staticProduct, ...savedProduct } : staticProduct
+          })
+
+          setProducts(mergedProducts)
+          console.log("[v0] Loaded products from localStorage:", mergedProducts)
+        }
+      } catch (error) {
+        console.error("[v0] Error loading products from localStorage:", error)
+        setProducts(staticProducts)
+      }
+    }
+
+    loadProducts()
+  }, [])
 
   const displayProducts = showAll ? products : products.slice(0, 8)
 
@@ -57,10 +93,18 @@ export function ProductList({ showAll = true }: ProductListProps) {
         {displayProducts.map((product) => (
           <Link key={product.id} href={`/products/${product.slug}`} className="block">
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 bg-white rounded-lg border border-border hover:shadow-lg transition-all duration-300 group cursor-pointer">
-              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-lg flex-shrink-0 flex items-center justify-center shadow-md">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-black/20 rounded flex items-center justify-center">
-                  <div className="w-4 h-4 sm:w-6 sm:h-6 bg-black/30 rounded"></div>
-                </div>
+              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-lg flex-shrink-0 flex items-center justify-center shadow-md overflow-hidden">
+                {product.imageUrl ? (
+                  <img
+                    src={product.imageUrl || "/placeholder.svg"}
+                    alt={product.name}
+                    className="w-full h-full object-cover rounded-lg"
+                  />
+                ) : (
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-black/20 rounded flex items-center justify-center">
+                    <div className="w-4 h-4 sm:w-6 sm:h-6 bg-black/30 rounded"></div>
+                  </div>
+                )}
               </div>
 
               <div className="flex-1 min-w-0 w-full sm:w-auto">

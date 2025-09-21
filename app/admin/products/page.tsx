@@ -48,8 +48,21 @@ export default function ProductManagement() {
   const [showAddProduct, setShowAddProduct] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<string>("all")
 
-  const [products, setProducts] = useState<Product[]>(
-    initialProducts.map((product) => ({
+  const [products, setProducts] = useState<Product[]>(() => {
+    // Check if we're on the client side and have saved products
+    if (typeof window !== "undefined") {
+      const savedProducts = localStorage.getItem("africa-stickers-products")
+      if (savedProducts) {
+        try {
+          return JSON.parse(savedProducts)
+        } catch (error) {
+          console.error("[v0] Error parsing saved products:", error)
+        }
+      }
+    }
+
+    // Fallback to initial products if no saved data
+    return initialProducts.map((product) => ({
       ...product,
       featured: [1, 2, 3, 8, 10].includes(product.id),
       variants:
@@ -75,8 +88,8 @@ export default function ProductManagement() {
         thickness: "Standard",
         adhesive: "Permanent",
       },
-    })),
-  )
+    }))
+  })
 
   const filteredProducts =
     selectedCategory === "all" ? products : products.filter((product) => product.category === selectedCategory)
@@ -189,11 +202,21 @@ export default function ProductManagement() {
           />
           <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
             <div className="flex gap-2">
-              <Button size="sm" variant="secondary" className="gap-1 text-xs">
+              <Button
+                size="sm"
+                variant="secondary"
+                className="gap-1 text-xs"
+                onClick={() => router.push(`/products/${product.slug}`)}
+              >
                 <Eye className="w-3 h-3" />
                 <span className="hidden sm:inline">Preview</span>
               </Button>
-              <Button size="sm" variant="secondary" className="gap-1 text-xs">
+              <Button
+                size="sm"
+                variant="secondary"
+                className="gap-1 text-xs"
+                onClick={() => setSelectedProduct(product)}
+              >
                 <Edit className="w-3 h-3" />
                 <span className="hidden sm:inline">Edit</span>
               </Button>
@@ -249,7 +272,12 @@ export default function ProductManagement() {
                     className="w-full h-full object-cover"
                   />
                   <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <Button size="sm" variant="secondary" className="gap-1 text-xs">
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      className="gap-1 text-xs"
+                      onClick={() => router.push(`/products/${product.slug}`)}
+                    >
                       <Eye className="w-2 h-2" />
                       View
                     </Button>
