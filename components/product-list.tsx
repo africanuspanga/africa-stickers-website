@@ -17,6 +17,7 @@ interface Product {
   category: string
   slug: string
   imageUrl: string | null
+  previewImageUrl: string | null
   variants: any[]
 }
 
@@ -28,22 +29,23 @@ export function ProductList({ showAll = true }: ProductListProps) {
   useEffect(() => {
     const loadProducts = () => {
       try {
-        const savedProducts = localStorage.getItem("products")
+        const savedProducts = localStorage.getItem("africa-stickers-products") || localStorage.getItem("products")
         if (savedProducts) {
           const parsedProducts = JSON.parse(savedProducts)
 
-          // Merge saved products with static products
           const mergedProducts = staticProducts.map((staticProduct) => {
             const savedProduct = parsedProducts.find((p: Product) => p.id === staticProduct.id)
-            return savedProduct ? { ...staticProduct, ...savedProduct } : staticProduct
+            return savedProduct ? { ...staticProduct, ...savedProduct } : { ...staticProduct, previewImageUrl: null }
           })
 
           setProducts(mergedProducts)
           console.log("[v0] Loaded products from localStorage:", mergedProducts)
+        } else {
+          setProducts(staticProducts.map((p) => ({ ...p, previewImageUrl: null })))
         }
       } catch (error) {
         console.error("[v0] Error loading products from localStorage:", error)
-        setProducts(staticProducts)
+        setProducts(staticProducts.map((p) => ({ ...p, previewImageUrl: null })))
       }
     }
 
@@ -94,9 +96,9 @@ export function ProductList({ showAll = true }: ProductListProps) {
           <Link key={product.id} href={`/products/${product.slug}`} className="block">
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 bg-white rounded-lg border border-border hover:shadow-lg transition-all duration-300 group cursor-pointer">
               <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-lg flex-shrink-0 flex items-center justify-center shadow-md overflow-hidden">
-                {product.imageUrl ? (
+                {product.previewImageUrl || product.imageUrl ? (
                   <img
-                    src={product.imageUrl || "/placeholder.svg"}
+                    src={product.previewImageUrl || product.imageUrl || "/placeholder.svg"}
                     alt={product.name}
                     className="w-full h-full object-cover rounded-lg"
                   />

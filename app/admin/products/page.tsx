@@ -16,6 +16,7 @@ type Product = {
   category: string
   slug: string
   imageUrl: string | null
+  previewImageUrl: string | null
   variants: Array<{
     id: string
     name: string
@@ -64,6 +65,7 @@ export default function ProductManagement() {
     // Fallback to initial products if no saved data
     return initialProducts.map((product) => ({
       ...product,
+      previewImageUrl: null,
       featured: [1, 2, 3, 8, 10].includes(product.id),
       variants:
         product.id === 1
@@ -94,15 +96,22 @@ export default function ProductManagement() {
   const filteredProducts =
     selectedCategory === "all" ? products : products.filter((product) => product.category === selectedCategory)
 
-  const handleImageUpload = async (productId: number, variantId: string | null, file: File) => {
+  const handleImageUpload = async (productId: number, variantId: string | null, file: File, isPreview = false) => {
     setIsLoading(true)
-    console.log(`[v0] Uploading image for product ${productId}, variant ${variantId}:`, file.name)
+    console.log(
+      `[v0] Uploading ${isPreview ? "preview" : "main"} image for product ${productId}, variant ${variantId}:`,
+      file.name,
+    )
 
     try {
       const formData = new FormData()
       formData.append("file", file)
 
-      const folder = variantId ? "africa-stickers/products/variants" : "africa-stickers/products/main-images"
+      const folder = isPreview
+        ? "africa-stickers/products/preview-images"
+        : variantId
+          ? "africa-stickers/products/variants"
+          : "africa-stickers/products/main-images"
       formData.append("folder", folder)
 
       console.log("[v0] Making upload request to /api/upload")
@@ -137,7 +146,9 @@ export default function ProductManagement() {
       setProducts((prev) => {
         const updatedProducts = prev.map((product) => {
           if (product.id === productId) {
-            if (variantId) {
+            if (isPreview) {
+              return { ...product, previewImageUrl: imageUrl }
+            } else if (variantId) {
               return {
                 ...product,
                 variants: product.variants.map((variant) =>
@@ -151,16 +162,16 @@ export default function ProductManagement() {
           return product
         })
 
-        // Persist to localStorage so public pages can access
         if (typeof window !== "undefined") {
           localStorage.setItem("africa-stickers-products", JSON.stringify(updatedProducts))
+          localStorage.setItem("products", JSON.stringify(updatedProducts))
         }
 
         return updatedProducts
       })
 
       console.log("[v0] Upload successful:", imageUrl)
-      alert("Image uploaded successfully!")
+      alert(`${isPreview ? "Preview" : "Main"} image uploaded successfully!`)
     } catch (error) {
       console.error("[v0] Upload error:", error)
       alert(`Upload failed: ${error instanceof Error ? error.message : "Unknown error"}`)
@@ -225,6 +236,44 @@ export default function ProductManagement() {
         </div>
 
         <div>
+          <Label className="text-xs font-medium">Preview Image (for product listing)</Label>
+          <div className="flex gap-2 mt-1">
+            <div className="w-12 h-12 bg-muted rounded overflow-hidden flex-shrink-0">
+              <img
+                src={product.previewImageUrl || `/placeholder.svg?height=48&width=48&query=${product.name}`}
+                alt={`${product.name} preview`}
+                className="w-full h-full object-cover"
+              />
+            </div>
+            <div className="flex-1">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  if (file) {
+                    handleImageUpload(product.id, null, file, true)
+                  }
+                }}
+                className="hidden"
+                disabled={isLoading}
+                id={`preview-image-${product.id}`}
+              />
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1 text-xs bg-transparent w-full"
+                disabled={isLoading}
+                onClick={() => document.getElementById(`preview-image-${product.id}`)?.click()}
+              >
+                <Upload className="w-3 h-3" />
+                {isLoading ? "Uploading..." : "Upload Preview"}
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        <div>
           <Label className="text-xs font-medium">Main Product Image</Label>
           <div className="flex gap-2 mt-1">
             <input
@@ -233,7 +282,7 @@ export default function ProductManagement() {
               onChange={(e) => {
                 const file = e.target.files?.[0]
                 if (file) {
-                  handleImageUpload(product.id, null, file)
+                  handleImageUpload(product.id, null, file, false)
                 }
               }}
               className="hidden"
