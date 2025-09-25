@@ -4,55 +4,86 @@ import { useState, useEffect } from "react"
 import { Filter, Heart } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
-import { products as staticProducts } from "@/lib/products"
+import type { Product } from "@/lib/products-db"
 
 interface ProductListProps {
   showAll?: boolean
 }
 
-interface Product {
-  id: number
-  name: string
-  description: string
-  category: string
-  slug: string
-  imageUrl: string | null
-  previewImageUrl: string | null
-  variants: any[]
-}
-
 export function ProductList({ showAll = true }: ProductListProps) {
   const [sortBy, setSortBy] = useState("name")
   const [showFilters, setShowFilters] = useState(false)
-  const [products, setProducts] = useState<Product[]>(staticProducts)
+  const [products, setProducts] = useState<Product[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    const loadProducts = () => {
+    const loadProducts = async () => {
       try {
-        const savedProducts = localStorage.getItem("africa-stickers-products") || localStorage.getItem("products")
-        if (savedProducts) {
-          const parsedProducts = JSON.parse(savedProducts)
+        setLoading(true)
+        console.log("[v0] Loading products from Supabase...")
 
-          const mergedProducts = staticProducts.map((staticProduct) => {
-            const savedProduct = parsedProducts.find((p: Product) => p.id === staticProduct.id)
-            return savedProduct ? { ...staticProduct, ...savedProduct } : { ...staticProduct, previewImageUrl: null }
-          })
-
-          setProducts(mergedProducts)
-          console.log("[v0] Loaded products from localStorage:", mergedProducts)
-        } else {
-          setProducts(staticProducts.map((p) => ({ ...p, previewImageUrl: null })))
+        const response = await fetch("/api/products")
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`)
         }
+
+        const data = await response.json()
+        console.log("[v0] Loaded products from Supabase:", data)
+        setProducts(data)
+        setError(null)
       } catch (error) {
-        console.error("[v0] Error loading products from localStorage:", error)
-        setProducts(staticProducts.map((p) => ({ ...p, previewImageUrl: null })))
+        console.error("[v0] Error loading products:", error)
+        setError(error instanceof Error ? error.message : "Failed to load products")
+        setProducts([])
+      } finally {
+        setLoading(false)
       }
     }
 
     loadProducts()
+
+    // Listen for product updates from admin panel
+    const handleProductUpdate = () => {
+      loadProducts()
+    }
+
+    window.addEventListener("productsUpdated", handleProductUpdate)
+
+    return () => {
+      window.removeEventListener("productsUpdated", handleProductUpdate)
+    }
   }, [])
 
   const displayProducts = showAll ? products : products.slice(0, 8)
+
+  if (loading) {
+    return (
+      <div className="w-full">
+        <div className="space-y-4">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="flex items-center gap-4 p-4 bg-white rounded-lg border border-border animate-pulse">
+              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gray-200 rounded-lg flex-shrink-0"></div>
+              <div className="flex-1">
+                <div className="h-6 bg-gray-200 rounded mb-2"></div>
+                <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+              </div>
+              <div className="w-20 h-8 bg-gray-200 rounded"></div>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="w-full text-center py-8">
+        <p className="text-red-600 mb-4">Error loading products: {error}</p>
+        <Button onClick={() => window.location.reload()}>Retry</Button>
+      </div>
+    )
+  }
 
   return (
     <div className="w-full">
@@ -96,9 +127,9 @@ export function ProductList({ showAll = true }: ProductListProps) {
           <Link key={product.id} href={`/products/${product.slug}`} className="block">
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 bg-white rounded-lg border border-border hover:shadow-lg transition-all duration-300 group cursor-pointer">
               <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-lg flex-shrink-0 flex items-center justify-center shadow-md overflow-hidden">
-                {product.previewImageUrl || product.imageUrl ? (
+                {product.preview_image_url || product.image_url ? (
                   <img
-                    src={product.previewImageUrl || product.imageUrl || "/placeholder.svg"}
+                    src={product.preview_image_url || product.image_url || "/placeholder.svg"}
                     alt={product.name}
                     className="w-full h-full object-cover rounded-lg"
                   />

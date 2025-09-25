@@ -1,46 +1,19 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Upload, ImageIcon, Save, Eye, Plus, Edit, Package } from "lucide-react"
-import { products as initialProducts } from "@/lib/products"
-
-type Product = {
-  id: number
-  name: string
-  description: string
-  category: string
-  slug: string
-  imageUrl: string | null
-  previewImageUrl: string | null
-  variants: Array<{
-    id: string
-    name: string
-    imageUrl: string | null
-    code: string
-  }>
-  featured?: boolean
-  specifications?: {
-    material: string
-    thickness: string
-    adhesive: string
-  }
-}
-
-const productCategories = [
-  { id: "vinyl", name: "Vinyl" },
-  { id: "wrapping", name: "Wrapping" },
-  { id: "reflective", name: "Reflective" },
-  { id: "decorative", name: "Decorative" },
-  { id: "automotive", name: "Automotive" },
-  { id: "transfer", name: "Transfer" },
-  { id: "custom", name: "Custom" },
-  { id: "tools", name: "Tools" },
-]
+import { ArrowLeft, Upload, ImageIcon, Save, Eye, Plus, Edit, Package, Trash2 } from "lucide-react"
+import {
+  type Product,
+  getAllProducts,
+  updateProductImage,
+  updateVariantImage,
+  getProductCategories,
+} from "@/lib/products-db"
 
 export default function ProductManagement() {
   const router = useRouter()
@@ -48,50 +21,33 @@ export default function ProductManagement() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const [showAddProduct, setShowAddProduct] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<string>("all")
+  const [products, setProducts] = useState<Product[]>([])
+  const [categories, setCategories] = useState<Array<{ id: string; name: string; count: number }>>([])
+  const [loading, setLoading] = useState(true)
 
-  const [products, setProducts] = useState<Product[]>(() => {
-    // Check if we're on the client side and have saved products
-    if (typeof window !== "undefined") {
-      const savedProducts = localStorage.getItem("africa-stickers-products")
-      if (savedProducts) {
-        try {
-          return JSON.parse(savedProducts)
-        } catch (error) {
-          console.error("[v0] Error parsing saved products:", error)
-        }
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoading(true)
+        console.log("[v0] Loading products and categories from Supabase...")
+
+        const [productsData, categoriesData] = await Promise.all([getAllProducts(), getProductCategories()])
+
+        console.log("[v0] Admin loaded products from Supabase:", productsData)
+        console.log("[v0] Admin loaded categories from Supabase:", categoriesData)
+
+        setProducts(productsData)
+        setCategories(categoriesData)
+      } catch (error) {
+        console.error("[v0] Error loading data:", error)
+        alert("Failed to load products. Please refresh the page.")
+      } finally {
+        setLoading(false)
       }
     }
 
-    // Fallback to initial products if no saved data
-    return initialProducts.map((product) => ({
-      ...product,
-      previewImageUrl: null,
-      featured: [1, 2, 3, 8, 10].includes(product.id),
-      variants:
-        product.id === 1
-          ? [
-              { id: "1", name: "Red Vinyl", imageUrl: null, code: "CVS-001" },
-              { id: "2", name: "Blue Vinyl", imageUrl: null, code: "CVS-002" },
-              { id: "3", name: "Gold Vinyl", imageUrl: null, code: "CVS-003" },
-            ]
-          : product.id === 2
-            ? [
-                { id: "4", name: "Carbon Fiber", imageUrl: null, code: "WS-001" },
-                { id: "5", name: "Matte Black", imageUrl: null, code: "WS-002" },
-              ]
-            : product.id === 3
-              ? [
-                  { id: "6", name: "White Reflective", imageUrl: null, code: "RS-001" },
-                  { id: "7", name: "Yellow Reflective", imageUrl: null, code: "RS-002" },
-                ]
-              : [],
-      specifications: {
-        material: "Premium Quality",
-        thickness: "Standard",
-        adhesive: "Permanent",
-      },
-    }))
-  })
+    loadData()
+  }, [])
 
   const filteredProducts =
     selectedCategory === "all" ? products : products.filter((product) => product.category === selectedCategory)
@@ -143,38 +99,107 @@ export default function ProductManagement() {
 
       const imageUrl = data.secure_url
 
-      setProducts((prev) => {
-        const updatedProducts = prev.map((product) => {
-          if (product.id === productId) {
-            if (isPreview) {
-              return { ...product, previewImageUrl: imageUrl }
-            } else if (variantId) {
-              return {
-                ...product,
-                variants: product.variants.map((variant) =>
-                  variant.id === variantId ? { ...variant, imageUrl } : variant,
-                ),
-              }
-            } else {
-              return { ...product, imageUrl }
-            }
-          }
-          return product
-        })
+      if (isPreview) {
+        await updateProductImage(productId, imageUrl, true)
+      } else if (variantId) {
+        await updateVariantImage(productId, variantId, imageUrl)
+      } else {
+        await updateProductImage(productId, imageUrl, false)
+      }
 
-        if (typeof window !== "undefined") {
-          localStorage.setItem("africa-stickers-products", JSON.stringify(updatedProducts))
-          localStorage.setItem("products", JSON.stringify(updatedProducts))
-        }
+      const updatedProducts = await getAllProducts()
+      setProducts(updatedProducts)
 
-        return updatedProducts
-      })
+      // Notify other components about the update
+      window.dispatchEvent(new CustomEvent("productsUpdated"))
 
       console.log("[v0] Upload successful:", imageUrl)
       alert(`${isPreview ? "Preview" : "Main"} image uploaded successfully!`)
     } catch (error) {
       console.error("[v0] Upload error:", error)
       alert(`Upload failed: ${error instanceof Error ? error.message : "Unknown error"}`)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleDeleteImage = async (productId: number, variantId: string | null, isPreview = false) => {
+    if (!confirm("Are you sure you want to delete this image? This action cannot be undone.")) {
+      return
+    }
+
+    setIsLoading(true)
+    console.log(`[v0] Deleting ${isPreview ? "preview" : "main"} image for product ${productId}, variant ${variantId}`)
+
+    try {
+      // Get the current image URL to extract public_id
+      const product = products.find((p) => p.id === productId)
+      if (!product) {
+        throw new Error("Product not found")
+      }
+
+      let imageUrl = ""
+      if (isPreview) {
+        imageUrl = product.preview_image_url || ""
+      } else if (variantId) {
+        const variant = product.variants?.find((v) => v.variant_id === variantId)
+        imageUrl = variant?.image_url || ""
+      } else {
+        imageUrl = product.image_url || ""
+      }
+
+      if (!imageUrl) {
+        throw new Error("No image to delete")
+      }
+
+      // Extract public_id from Cloudinary URL
+      const urlParts = imageUrl.split("/")
+      const uploadIndex = urlParts.findIndex((part) => part === "upload")
+      if (uploadIndex === -1) {
+        throw new Error("Invalid Cloudinary URL")
+      }
+
+      // Get everything after /upload/v{version}/
+      const pathAfterUpload = urlParts.slice(uploadIndex + 2).join("/")
+      const publicId = pathAfterUpload.split(".")[0] // Remove file extension
+
+      console.log("[v0] Extracted public_id:", publicId)
+
+      // Delete from Cloudinary
+      const deleteResponse = await fetch("/api/images", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ public_id: publicId }),
+      })
+
+      const deleteResult = await deleteResponse.json()
+      if (!deleteResponse.ok) {
+        throw new Error(deleteResult.error || "Failed to delete from Cloudinary")
+      }
+
+      console.log("[v0] Image deleted from Cloudinary:", deleteResult)
+
+      // Update database to remove image URL
+      if (isPreview) {
+        await updateProductImage(productId, "", true)
+      } else if (variantId) {
+        await updateVariantImage(productId, variantId, "")
+      } else {
+        await updateProductImage(productId, "", false)
+      }
+
+      // Refresh products list
+      const updatedProducts = await getAllProducts()
+      setProducts(updatedProducts)
+
+      // Notify other components about the update
+      window.dispatchEvent(new CustomEvent("productsUpdated"))
+
+      console.log("[v0] Image deletion successful")
+      alert("Image deleted successfully!")
+    } catch (error) {
+      console.error("[v0] Delete error:", error)
+      alert(`Delete failed: ${error instanceof Error ? error.message : "Unknown error"}`)
     } finally {
       setIsLoading(false)
     }
@@ -207,7 +232,7 @@ export default function ProductManagement() {
       <CardContent className="space-y-4">
         <div className="aspect-video bg-muted rounded-lg overflow-hidden relative group">
           <img
-            src={product.imageUrl || `/placeholder.svg?height=200&width=300&query=${product.name}`}
+            src={product.image_url || `/placeholder.svg?height=200&width=300&query=${product.name}`}
             alt={product.name}
             className="w-full h-full object-cover"
           />
@@ -238,12 +263,25 @@ export default function ProductManagement() {
         <div>
           <Label className="text-xs font-medium">Preview Image (for product listing)</Label>
           <div className="flex gap-2 mt-1">
-            <div className="w-12 h-12 bg-muted rounded overflow-hidden flex-shrink-0">
+            <div className="w-12 h-12 bg-muted rounded overflow-hidden flex-shrink-0 relative group">
               <img
-                src={product.previewImageUrl || `/placeholder.svg?height=48&width=48&query=${product.name}`}
+                src={product.preview_image_url || `/placeholder.svg?height=48&width=48&query=${product.name}`}
                 alt={`${product.name} preview`}
                 className="w-full h-full object-cover"
               />
+              {product.preview_image_url && (
+                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    className="gap-1 text-xs p-1 h-6 w-6"
+                    disabled={isLoading}
+                    onClick={() => handleDeleteImage(product.id, null, true)}
+                  >
+                    <Trash2 className="w-2 h-2" />
+                  </Button>
+                </div>
+              )}
             </div>
             <div className="flex-1">
               <input
@@ -299,12 +337,24 @@ export default function ProductManagement() {
               <Upload className="w-3 h-3" />
               {isLoading ? "Uploading..." : "Choose & Upload Image"}
             </Button>
+            {product.image_url && (
+              <Button
+                size="sm"
+                variant="destructive"
+                className="gap-1 text-xs"
+                disabled={isLoading}
+                onClick={() => handleDeleteImage(product.id, null, false)}
+              >
+                <Trash2 className="w-3 h-3" />
+                Delete
+              </Button>
+            )}
           </div>
         </div>
 
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <Label className="text-sm font-medium">Variants ({product.variants.length})</Label>
+            <Label className="text-sm font-medium">Variants ({product.variants?.length || 0})</Label>
             <Button size="sm" variant="outline" className="gap-1 text-xs bg-transparent">
               <Plus className="w-3 h-3" />
               <span className="hidden sm:inline">Add</span>
@@ -312,24 +362,35 @@ export default function ProductManagement() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {product.variants.map((variant) => (
-              <div key={variant.id} className="border rounded-lg p-3 space-y-2">
+            {product.variants?.map((variant) => (
+              <div key={variant.variant_id} className="border rounded-lg p-3 space-y-2">
                 <div className="aspect-square bg-muted rounded overflow-hidden relative group">
                   <img
-                    src={variant.imageUrl || `/placeholder.svg?height=100&width=100&query=${variant.name}`}
+                    src={variant.image_url || `/placeholder.svg?height=100&width=100&query=${variant.name}`}
                     alt={variant.name}
                     className="w-full h-full object-cover"
                   />
-                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
                     <Button
                       size="sm"
                       variant="secondary"
-                      className="gap-1 text-xs"
+                      className="gap-1 text-xs p-1 h-6"
                       onClick={() => router.push(`/products/${product.slug}`)}
                     >
                       <Eye className="w-2 h-2" />
                       View
                     </Button>
+                    {variant.image_url && (
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        className="gap-1 text-xs p-1 h-6"
+                        disabled={isLoading}
+                        onClick={() => handleDeleteImage(product.id, variant.variant_id, false)}
+                      >
+                        <Trash2 className="w-2 h-2" />
+                      </Button>
+                    )}
                   </div>
                 </div>
                 <div>
@@ -342,19 +403,19 @@ export default function ProductManagement() {
                   onChange={(e) => {
                     const file = e.target.files?.[0]
                     if (file) {
-                      handleImageUpload(product.id, variant.id, file)
+                      handleImageUpload(product.id, variant.variant_id, file)
                     }
                   }}
                   className="hidden"
                   disabled={isLoading}
-                  id={`variant-image-${product.id}-${variant.id}`}
+                  id={`variant-image-${product.id}-${variant.variant_id}`}
                 />
                 <Button
                   size="sm"
                   variant="outline"
                   className="gap-1 text-xs w-full bg-transparent"
                   disabled={isLoading}
-                  onClick={() => document.getElementById(`variant-image-${product.id}-${variant.id}`)?.click()}
+                  onClick={() => document.getElementById(`variant-image-${product.id}-${variant.variant_id}`)?.click()}
                 >
                   <Upload className="w-2 h-2" />
                   {isLoading ? "Uploading..." : "Upload"}
@@ -389,6 +450,17 @@ export default function ProductManagement() {
       </CardContent>
     </Card>
   )
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p>Loading products...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -444,7 +516,7 @@ export default function ProductManagement() {
               >
                 All Products ({products.length})
               </Button>
-              {productCategories.map((category) => (
+              {categories.map((category) => (
                 <Button
                   key={category.id}
                   variant={selectedCategory === category.id ? "default" : "outline"}
@@ -452,7 +524,7 @@ export default function ProductManagement() {
                   className="text-xs bg-transparent"
                   onClick={() => setSelectedCategory(category.id)}
                 >
-                  {category.name} ({products.filter((p) => p.category === category.id).length})
+                  {category.name} ({category.count})
                 </Button>
               ))}
             </div>

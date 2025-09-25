@@ -3,7 +3,7 @@ import { ArrowLeft, Heart, Share2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import Link from "next/link"
-import { products } from "@/lib/products"
+import { getProductBySlug } from "@/lib/products-db"
 import type { Metadata } from "next"
 
 interface ProductPageProps {
@@ -12,24 +12,10 @@ interface ProductPageProps {
   }
 }
 
-function getProductImages(slug: string) {
-  if (typeof window !== "undefined") {
-    const storedProducts = localStorage.getItem("africa-stickers-products")
-    if (storedProducts) {
-      try {
-        const products = JSON.parse(storedProducts)
-        const product = products.find((p: any) => p.slug === slug)
-        return product || null
-      } catch (error) {
-        console.error("Error parsing stored products:", error)
-      }
-    }
-  }
-  return null
-}
+// Removed getProductImages function as it's no longer needed
 
 export async function generateMetadata({ params }: ProductPageProps): Promise<Metadata> {
-  const product = products.find((p) => p.slug === params.slug)
+  const product = await getProductBySlug(params.slug)
 
   if (!product) {
     return {
@@ -45,15 +31,15 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
   }
 }
 
-export default function ProductPage({ params }: ProductPageProps) {
-  const product = products.find((p) => p.slug === params.slug)
+export default async function ProductPage({ params }: ProductPageProps) {
+  const product = await getProductBySlug(params.slug)
 
   if (!product) {
     notFound()
   }
 
-  const storedProduct = getProductImages(params.slug)
-  const productImageUrl = storedProduct?.imageUrl || product.imageUrl
+  const productImageUrl = product.image_url
+  const previewImageUrl = product.preview_image_url
 
   return (
     <div className="min-h-screen bg-background">
@@ -823,15 +809,15 @@ export default function ProductPage({ params }: ProductPageProps) {
         <div className="mt-8">
           <h3 className="font-semibold text-lg mb-4">Available Variants</h3>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-            {storedProduct?.variants?.length > 0
-              ? storedProduct.variants.map((variant: any) => (
+            {product.variants && product.variants.length > 0
+              ? product.variants.map((variant) => (
                   <div
-                    key={variant.id}
+                    key={variant.variant_id}
                     className="aspect-square bg-muted rounded-lg flex items-center justify-center overflow-hidden"
                   >
-                    {variant.imageUrl ? (
+                    {variant.image_url ? (
                       <img
-                        src={variant.imageUrl || "/placeholder.svg"}
+                        src={variant.image_url || "/placeholder.svg"}
                         alt={variant.name}
                         className="w-full h-full object-cover"
                       />
@@ -869,7 +855,28 @@ export default function ProductPage({ params }: ProductPageProps) {
 }
 
 export async function generateStaticParams() {
-  return products.map((product) => ({
+  // This function needs to be updated to fetch slugs from the database
+  // For now, we'll keep the old implementation as a placeholder
+  // In a real application, you would use getProductSlugs() or similar from your DB functions
+  const dummyProducts = [
+    { slug: "color-vinyl-stickers" },
+    { slug: "frosted-stickers" },
+    { slug: "3m-reflective-tapes" },
+    { slug: "wood-marble-stickers" },
+    { slug: "t-shirt-heat-transfer-stickers" },
+    { slug: "tinted-film" },
+    { slug: "self-adhesive-stickers" },
+    { slug: "sticker-tools" },
+    { slug: "reflective-sheeting" },
+    { slug: "headlight-stickers" },
+    { slug: "egp-reflective-sheeting" },
+    { slug: "self-adhesive-vinyl" },
+    { slug: "tinted-stickers" },
+    { slug: "frost-stickers" },
+    { slug: "wrapping-stickers" },
+    { slug: "gold-chrome-mirror" },
+  ]
+  return dummyProducts.map((product) => ({
     slug: product.slug,
   }))
 }

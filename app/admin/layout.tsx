@@ -1,15 +1,4 @@
 import type React from "react"
-import { Inter, JetBrains_Mono } from "next/font/google"
-
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
-})
-
-const jetbrainsMono = JetBrains_Mono({
-  subsets: ["latin"],
-  variable: "--font-jetbrains-mono",
-})
 
 export default function AdminLayout({
   children,
@@ -17,8 +6,8 @@ export default function AdminLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`}>
-      <body className="font-sans antialiased">{children}</body>
-    </html>
+    <div className="min-h-screen bg-gray-50">
+      <div className="container mx-auto px-4 py-8">{children}</div>
+    </div>
   )
 }

@@ -1,7 +1,6 @@
 import type React from "react"
 import type { Metadata } from "next"
 import { Inter, JetBrains_Mono } from "next/font/google"
-import { Analytics } from "@vercel/analytics/next"
 import { Suspense } from "react"
 import "./globals.css"
 import { BusinessStructuredData } from "@/components/structured-data"
@@ -79,14 +78,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <head>
-        <link rel="icon" href="/favicon.ico" />
-        <link rel="manifest" href="/manifest.json" />
-        <BusinessStructuredData />
-      </head>
       <body className={`font-sans ${inter.variable} ${jetbrainsMono.variable}`}>
         <Suspense fallback={null}>{children}</Suspense>
-        <Analytics />
+        <BusinessStructuredData />
       </body>
     </html>
   )
