@@ -4,8 +4,6 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { LayoutDashboard, ImageIcon, Package, Home, LogOut, Upload, Settings } from "lucide-react"
-import { SupabaseStatus } from "@/components/supabase-status"
-import { DatabaseTest } from "@/components/database-test"
 
 export default function AdminDashboard() {
   const router = useRouter()
@@ -52,7 +50,6 @@ export default function AdminDashboard() {
             <h1 className="text-xl font-bold">Africa Stickers Admin</h1>
           </div>
           <div className="flex items-center gap-3">
-            <SupabaseStatus />
             <Button onClick={handleLogout} variant="outline" size="sm" className="gap-2 bg-transparent">
               <LogOut className="w-4 h-4" />
               Logout
@@ -84,7 +81,7 @@ export default function AdminDashboard() {
                 <CardTitle className="text-lg">{card.title}</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-sm mb-4">{card.description}</p>
+                <p className="text-sm text-muted-foreground mb-4">{card.description}</p>
                 <Button
                   onClick={card.functional ? () => router.push(card.href) : undefined}
                   className="w-full"
@@ -99,13 +96,13 @@ export default function AdminDashboard() {
         </div>
 
         {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center gap-2">
                 <Upload className="w-5 h-5 text-primary" />
                 <div>
-                  <p className="text-2xl font-bold">15</p>
+                  <p className="text-2xl font-bold">12</p>
                   <p className="text-sm text-muted-foreground">Products</p>
                 </div>
               </div>
@@ -117,7 +114,7 @@ export default function AdminDashboard() {
               <div className="flex items-center gap-2">
                 <ImageIcon className="w-5 h-5 text-secondary" />
                 <div>
-                  <p className="text-2xl font-bold">0</p>
+                  <p className="text-2xl font-bold">24</p>
                   <p className="text-sm text-muted-foreground">Images</p>
                 </div>
               </div>
@@ -147,33 +144,6 @@ export default function AdminDashboard() {
               </div>
             </CardContent>
           </Card>
-        </div>
-
-        {/* Database Test Section */}
-        <div className="mb-8">
-          <h3 className="text-xl font-semibold mb-4">Database Setup</h3>
-          <div className="flex gap-6">
-            <DatabaseTest />
-            <Card className="flex-1">
-              <CardHeader>
-                <CardTitle>Setup Instructions</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3 text-sm">
-                <div>
-                  <strong>Step 1:</strong> Go to your Supabase dashboard → SQL Editor
-                </div>
-                <div>
-                  <strong>Step 2:</strong> Copy and run the SQL from <code>scripts/001-create-products-table.sql</code>
-                </div>
-                <div>
-                  <strong>Step 3:</strong> Copy and run the SQL from <code>scripts/002-seed-initial-products.sql</code>
-                </div>
-                <div>
-                  <strong>Step 4:</strong> Click "Test Database" to verify setup
-                </div>
-              </CardContent>
-            </Card>
-          </div>
         </div>
       </main>
     </div>

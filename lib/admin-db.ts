@@ -47,7 +47,7 @@ export async function getAllProductsAdmin(): Promise<AdminProduct[]> {
   const { data: variants, error: variantsError } = await supabase
     .from("product_variants")
     .select("*")
-    .order("product_id, variant_id")
+    .order("product_id, id")
 
   if (variantsError) {
     console.error("[v0] Error fetching variants:", variantsError)

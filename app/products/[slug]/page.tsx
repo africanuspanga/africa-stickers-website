@@ -806,38 +806,33 @@ export default async function ProductPage({ params }: ProductPageProps) {
         </Tabs>
 
         {/* Product Variants Grid */}
-        <div className="mt-8">
-          <h3 className="font-semibold text-lg mb-4">Available Variants</h3>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-            {product.variants && product.variants.length > 0
-              ? product.variants.map((variant) => (
-                  <div
-                    key={variant.variant_id}
-                    className="aspect-square bg-muted rounded-lg flex items-center justify-center overflow-hidden"
-                  >
+        {product.variants && product.variants.length > 0 && (
+          <div className="mt-8">
+            <h3 className="font-semibold text-lg mb-4 text-foreground">Product Variants</h3>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+              {product.variants.map((variant) => (
+                <div
+                  key={variant.id}
+                  className="group relative bg-card border border-border rounded-lg overflow-hidden hover:shadow-lg transition-all duration-300 hover:border-[#D4AF37] cursor-pointer"
+                >
+                  <div className="aspect-square bg-muted flex items-center justify-center overflow-hidden">
                     {variant.image_url ? (
                       <img
                         src={variant.image_url || "/placeholder.svg"}
-                        alt={variant.name}
-                        className="w-full h-full object-cover"
+                        alt={`Variant ${variant.id}`}
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                       />
                     ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center">
-                        <div className="w-8 h-8 bg-black/20 rounded"></div>
+                      <div className="w-full h-full bg-gradient-to-br from-[#D4AF37] to-[#B8941F] flex items-center justify-center">
+                        <div className="w-12 h-12 bg-black/20 rounded-lg"></div>
                       </div>
                     )}
                   </div>
-                ))
-              : [1, 2, 3, 4, 5, 6].map((variant) => (
-                  <div
-                    key={variant}
-                    className="aspect-square bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-lg flex items-center justify-center"
-                  >
-                    <div className="w-8 h-8 bg-black/20 rounded"></div>
-                  </div>
-                ))}
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Contact CTA */}
         <div className="mt-8 bg-gradient-to-r from-yellow-400 to-yellow-600 rounded-lg p-6 text-center">

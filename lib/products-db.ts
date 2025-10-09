@@ -18,10 +18,11 @@ export interface Product {
 export interface ProductVariant {
   id: number
   product_id: number
-  variant_id: string
-  name: string
+  variant_name: string
+  variant_name_sw: string | null
+  quantity: number
   image_url: string | null
-  code: string
+  display_order: number
   created_at: string
   updated_at: string
 }
@@ -43,11 +44,11 @@ export async function getAllProducts(): Promise<Product[]> {
   const { data: variants, error: variantsError } = await supabase
     .from("product_variants")
     .select("*")
-    .order("product_id, variant_id")
+    .order("product_id, display_order")
 
   if (variantsError) {
     console.error("[v0] Error fetching variants:", variantsError)
-    throw variantsError
+    // Don't throw, just log the error and continue without variants
   }
 
   // Group variants by product_id
@@ -91,7 +92,7 @@ export async function getProductBySlug(slug: string): Promise<Product | null> {
     .from("product_variants")
     .select("*")
     .eq("product_id", product.id)
-    .order("variant_id")
+    .order("display_order")
 
   if (variantsError) {
     console.error("[v0] Error fetching variants:", variantsError)
@@ -120,7 +121,7 @@ export async function updateProductImage(productId: number, imageUrl: string, is
   }
 }
 
-export async function updateVariantImage(productId: number, variantId: string, imageUrl: string): Promise<void> {
+export async function updateVariantImage(productId: number, variantId: number, imageUrl: string): Promise<void> {
   if (!supabase) {
     throw new Error("Supabase client not available. Please check environment variables.")
   }
@@ -131,8 +132,7 @@ export async function updateVariantImage(productId: number, variantId: string, i
       image_url: imageUrl,
       updated_at: new Date().toISOString(),
     })
-    .eq("product_id", productId)
-    .eq("variant_id", variantId)
+    .eq("id", variantId)
 
   if (error) {
     console.error("[v0] Error updating variant image:", error)

@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Upload, ImageIcon, Save, Eye, Plus, Edit, Package, Trash2 } from "lucide-react"
+import { ArrowLeft, Upload, ImageIcon, Save, Eye, Plus, Edit, Package, Trash2, Grid3x3 } from "lucide-react"
+import { VariantManager } from "@/components/admin/variant-manager"
 import {
   type Product,
   getAllProducts,
@@ -24,6 +25,8 @@ export default function ProductManagement() {
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Array<{ id: string; name: string; count: number }>>([])
   const [loading, setLoading] = useState(true)
+  const [variantManagerOpen, setVariantManagerOpen] = useState(false)
+  const [selectedProductForVariants, setSelectedProductForVariants] = useState<Product | null>(null)
 
   useEffect(() => {
     const loadData = async () => {
@@ -52,7 +55,7 @@ export default function ProductManagement() {
   const filteredProducts =
     selectedCategory === "all" ? products : products.filter((product) => product.category === selectedCategory)
 
-  const handleImageUpload = async (productId: number, variantId: string | null, file: File, isPreview = false) => {
+  const handleImageUpload = async (productId: number, variantId: number | null, file: File, isPreview = false) => {
     setIsLoading(true)
     console.log(
       `[v0] Uploading ${isPreview ? "preview" : "main"} image for product ${productId}, variant ${variantId}:`,
@@ -123,7 +126,7 @@ export default function ProductManagement() {
     }
   }
 
-  const handleDeleteImage = async (productId: number, variantId: string | null, isPreview = false) => {
+  const handleDeleteImage = async (productId: number, variantId: number | null, isPreview = false) => {
     if (!confirm("Are you sure you want to delete this image? This action cannot be undone.")) {
       return
     }
@@ -142,7 +145,7 @@ export default function ProductManagement() {
       if (isPreview) {
         imageUrl = product.preview_image_url || ""
       } else if (variantId) {
-        const variant = product.variants?.find((v) => v.variant_id === variantId)
+        const variant = product.variants?.find((v) => v.id === variantId)
         imageUrl = variant?.image_url || ""
       } else {
         imageUrl = product.image_url || ""
@@ -212,6 +215,16 @@ export default function ProductManagement() {
       setIsLoading(false)
       alert("Product changes saved successfully!")
     }, 1000)
+  }
+
+  const handleManageVariants = (product: Product) => {
+    setSelectedProductForVariants(product)
+    setVariantManagerOpen(true)
+  }
+
+  const handleVariantsUpdate = async () => {
+    const updatedProducts = await getAllProducts()
+    setProducts(updatedProducts)
   }
 
   const ProductCard = ({ product }: { product: Product }) => (
@@ -352,77 +365,22 @@ export default function ProductManagement() {
           </div>
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <Label className="text-sm font-medium">Variants ({product.variants?.length || 0})</Label>
-            <Button size="sm" variant="outline" className="gap-1 text-xs bg-transparent">
-              <Plus className="w-3 h-3" />
-              <span className="hidden sm:inline">Add</span>
+            <Label className="text-sm font-medium">Variants</Label>
+            <Button
+              size="sm"
+              variant="default"
+              className="gap-1 text-xs bg-[#D4AF37] hover:bg-[#B8941F] text-black"
+              onClick={() => handleManageVariants(product)}
+            >
+              <Grid3x3 className="w-3 h-3" />
+              Manage Variants
             </Button>
           </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {product.variants?.map((variant) => (
-              <div key={variant.variant_id} className="border rounded-lg p-3 space-y-2">
-                <div className="aspect-square bg-muted rounded overflow-hidden relative group">
-                  <img
-                    src={variant.image_url || `/placeholder.svg?height=100&width=100&query=${variant.name}`}
-                    alt={variant.name}
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      className="gap-1 text-xs p-1 h-6"
-                      onClick={() => router.push(`/products/${product.slug}`)}
-                    >
-                      <Eye className="w-2 h-2" />
-                      View
-                    </Button>
-                    {variant.image_url && (
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        className="gap-1 text-xs p-1 h-6"
-                        disabled={isLoading}
-                        onClick={() => handleDeleteImage(product.id, variant.variant_id, false)}
-                      >
-                        <Trash2 className="w-2 h-2" />
-                      </Button>
-                    )}
-                  </div>
-                </div>
-                <div>
-                  <p className="text-xs font-medium truncate">{variant.name}</p>
-                  <p className="text-xs text-muted-foreground">{variant.code}</p>
-                </div>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0]
-                    if (file) {
-                      handleImageUpload(product.id, variant.variant_id, file)
-                    }
-                  }}
-                  className="hidden"
-                  disabled={isLoading}
-                  id={`variant-image-${product.id}-${variant.variant_id}`}
-                />
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="gap-1 text-xs w-full bg-transparent"
-                  disabled={isLoading}
-                  onClick={() => document.getElementById(`variant-image-${product.id}-${variant.variant_id}`)?.click()}
-                >
-                  <Upload className="w-2 h-2" />
-                  {isLoading ? "Uploading..." : "Upload"}
-                </Button>
-              </div>
-            ))}
-          </div>
+          <p className="text-xs text-muted-foreground">
+            Click "Manage Variants" to add, edit, and upload images for product variants
+          </p>
         </div>
 
         <div className="flex gap-2">
@@ -573,6 +531,20 @@ export default function ProductManagement() {
           </CardContent>
         </Card>
       </main>
+
+      {selectedProductForVariants && (
+        <VariantManager
+          productId={selectedProductForVariants.id}
+          productSlug={selectedProductForVariants.slug}
+          productName={selectedProductForVariants.name}
+          isOpen={variantManagerOpen}
+          onClose={() => {
+            setVariantManagerOpen(false)
+            setSelectedProductForVariants(null)
+          }}
+          onUpdate={handleVariantsUpdate}
+        />
+      )}
     </div>
   )
 }
