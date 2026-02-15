@@ -1,10 +1,11 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Filter, Heart } from "lucide-react"
+import { Filter } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import type { Product } from "@/lib/products-db"
+import { ProductLikeButton } from "@/components/product-like-button"
 
 interface ProductListProps {
   showAll?: boolean
@@ -150,17 +151,19 @@ export function ProductList({ showAll = true }: ProductListProps) {
               </div>
 
               <div className="flex items-center gap-2 flex-shrink-0 w-full sm:w-auto justify-end">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-muted-foreground hover:text-yellow-600 hover:bg-yellow-50"
+                <div
                   onClick={(e) => {
                     e.preventDefault()
                     e.stopPropagation()
                   }}
                 >
-                  <Heart className="w-4 h-4" />
-                </Button>
+                  <ProductLikeButton
+                    productId={product.id}
+                    initialLikes={product.likes_count}
+                    size="sm"
+                    className="text-muted-foreground hover:text-red-600 hover:bg-red-50"
+                  />
+                </div>
 
                 <Button
                   variant="outline"

@@ -1,12 +1,29 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import type React from "react"
+
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Upload, ImageIcon, Save, Eye, Plus, Edit, Package, Trash2, Grid3x3 } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import {
+  ArrowLeft,
+  Upload,
+  ImageIcon,
+  Save,
+  Eye,
+  Plus,
+  Edit,
+  Package,
+  Trash2,
+  Grid3x3,
+  RefreshCw,
+} from "lucide-react"
 import { VariantManager } from "@/components/admin/variant-manager"
 import {
   type Product,
@@ -14,93 +31,117 @@ import {
   updateProductImage,
   updateVariantImage,
   getProductCategories,
+  createProduct,
+  updateProductDetails,
+  createProductVariant,
 } from "@/lib/products-db"
+
+type ProductFormMode = "create" | "edit"
+
+function toSlug(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+}
+
+function escapeCsv(value: string | number | boolean | null | undefined) {
+  const text = value == null ? "" : String(value)
+  return `"${text.replace(/"/g, '""')}"`
+}
 
 export default function ProductManagement() {
   const router = useRouter()
+  const bulkImageInputRef = useRef<HTMLInputElement>(null)
+
   const [isLoading, setIsLoading] = useState(false)
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
-  const [showAddProduct, setShowAddProduct] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<string>("all")
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Array<{ id: string; name: string; count: number }>>([])
   const [loading, setLoading] = useState(true)
+
   const [variantManagerOpen, setVariantManagerOpen] = useState(false)
   const [selectedProductForVariants, setSelectedProductForVariants] = useState<Product | null>(null)
 
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        setLoading(true)
-        console.log("[v0] Loading products and categories from Supabase...")
+  const [productFormOpen, setProductFormOpen] = useState(false)
+  const [productFormMode, setProductFormMode] = useState<ProductFormMode>("create")
+  const [editingProductId, setEditingProductId] = useState<number | null>(null)
+  const [productFormData, setProductFormData] = useState({
+    name: "",
+    description: "",
+    category: "",
+    slug: "",
+    featured: false,
+  })
 
-        const [productsData, categoriesData] = await Promise.all([getAllProducts(), getProductCategories()])
+  const loadData = async (showPageLoader = false) => {
+    try {
+      if (showPageLoader) setLoading(true)
 
-        console.log("[v0] Admin loaded products from Supabase:", productsData)
-        console.log("[v0] Admin loaded categories from Supabase:", categoriesData)
-
-        setProducts(productsData)
-        setCategories(categoriesData)
-      } catch (error) {
-        console.error("[v0] Error loading data:", error)
-        alert("Failed to load products. Please refresh the page.")
-      } finally {
-        setLoading(false)
-      }
+      const [productsData, categoriesData] = await Promise.all([getAllProducts(), getProductCategories()])
+      setProducts(productsData)
+      setCategories(categoriesData)
+    } catch (error) {
+      console.error("[v0] Error loading products:", error)
+      alert("Failed to load products. Please refresh the page.")
+    } finally {
+      if (showPageLoader) setLoading(false)
     }
+  }
 
-    loadData()
+  useEffect(() => {
+    loadData(true)
   }, [])
 
-  const filteredProducts =
-    selectedCategory === "all" ? products : products.filter((product) => product.category === selectedCategory)
+  const filteredProducts = useMemo(
+    () => (selectedCategory === "all" ? products : products.filter((product) => product.category === selectedCategory)),
+    [products, selectedCategory],
+  )
 
-  const handleImageUpload = async (productId: number, variantId: number | null, file: File, isPreview = false) => {
+  const uploadFileToCloudinary = async (file: File, folder: string) => {
+    const formData = new FormData()
+    formData.append("file", file)
+    formData.append("folder", folder)
+
+    const response = await fetch("/api/upload", {
+      method: "POST",
+      body: formData,
+    })
+
+    let data: any = null
+    const contentType = response.headers.get("content-type")
+    if (contentType && contentType.includes("application/json")) {
+      data = await response.json()
+    } else {
+      data = { error: `Server returned non-JSON response (${response.status})` }
+    }
+
+    if (!response.ok || !data?.secure_url) {
+      throw new Error(data?.error || `Upload failed with status ${response.status}`)
+    }
+
+    return data.secure_url as string
+  }
+
+  const handleImageUpload = async (
+    productId: number,
+    variantId: number | null,
+    file: File,
+    isPreview = false,
+    notify = true,
+  ) => {
     setIsLoading(true)
-    console.log(
-      `[v0] Uploading ${isPreview ? "preview" : "main"} image for product ${productId}, variant ${variantId}:`,
-      file.name,
-    )
 
     try {
-      const formData = new FormData()
-      formData.append("file", file)
-
       const folder = isPreview
         ? "africa-stickers/products/preview-images"
         : variantId
           ? "africa-stickers/products/variants"
           : "africa-stickers/products/main-images"
-      formData.append("folder", folder)
 
-      console.log("[v0] Making upload request to /api/upload")
-
-      const response = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      })
-
-      console.log("[v0] Upload response status:", response.status)
-
-      let data
-      const contentType = response.headers.get("content-type")
-
-      if (contentType && contentType.includes("application/json")) {
-        data = await response.json()
-      } else {
-        const errorText = await response.text()
-        console.error("[v0] Non-JSON response received:", errorText)
-        data = { error: `Server returned non-JSON response: ${response.status} ${response.statusText}` }
-      }
-
-      if (!response.ok) {
-        console.error("[v0] Upload failed with error:", data)
-        throw new Error(data.error || `Upload failed with status ${response.status}`)
-      }
-
-      console.log("[v0] Upload response data:", data)
-
-      const imageUrl = data.secure_url
+      const imageUrl = await uploadFileToCloudinary(file, folder)
 
       if (isPreview) {
         await updateProductImage(productId, imageUrl, true)
@@ -110,14 +151,12 @@ export default function ProductManagement() {
         await updateProductImage(productId, imageUrl, false)
       }
 
-      const updatedProducts = await getAllProducts()
-      setProducts(updatedProducts)
-
-      // Notify other components about the update
+      await loadData()
       window.dispatchEvent(new CustomEvent("productsUpdated"))
 
-      console.log("[v0] Upload successful:", imageUrl)
-      alert(`${isPreview ? "Preview" : "Main"} image uploaded successfully!`)
+      if (notify) {
+        alert(`${isPreview ? "Preview" : "Main"} image uploaded successfully.`)
+      }
     } catch (error) {
       console.error("[v0] Upload error:", error)
       alert(`Upload failed: ${error instanceof Error ? error.message : "Unknown error"}`)
@@ -132,10 +171,8 @@ export default function ProductManagement() {
     }
 
     setIsLoading(true)
-    console.log(`[v0] Deleting ${isPreview ? "preview" : "main"} image for product ${productId}, variant ${variantId}`)
 
     try {
-      // Get the current image URL to extract public_id
       const product = products.find((p) => p.id === productId)
       if (!product) {
         throw new Error("Product not found")
@@ -145,8 +182,7 @@ export default function ProductManagement() {
       if (isPreview) {
         imageUrl = product.preview_image_url || ""
       } else if (variantId) {
-        const variant = product.variants?.find((v) => v.id === variantId)
-        imageUrl = variant?.image_url || ""
+        imageUrl = product.variants?.find((variant) => variant.id === variantId)?.image_url || ""
       } else {
         imageUrl = product.image_url || ""
       }
@@ -155,34 +191,26 @@ export default function ProductManagement() {
         throw new Error("No image to delete")
       }
 
-      // Extract public_id from Cloudinary URL
       const urlParts = imageUrl.split("/")
       const uploadIndex = urlParts.findIndex((part) => part === "upload")
       if (uploadIndex === -1) {
         throw new Error("Invalid Cloudinary URL")
       }
 
-      // Get everything after /upload/v{version}/
       const pathAfterUpload = urlParts.slice(uploadIndex + 2).join("/")
-      const publicId = pathAfterUpload.split(".")[0] // Remove file extension
+      const publicId = pathAfterUpload.split(".")[0]
 
-      console.log("[v0] Extracted public_id:", publicId)
-
-      // Delete from Cloudinary
       const deleteResponse = await fetch("/api/images", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ public_id: publicId }),
       })
-
       const deleteResult = await deleteResponse.json()
+
       if (!deleteResponse.ok) {
         throw new Error(deleteResult.error || "Failed to delete from Cloudinary")
       }
 
-      console.log("[v0] Image deleted from Cloudinary:", deleteResult)
-
-      // Update database to remove image URL
       if (isPreview) {
         await updateProductImage(productId, "", true)
       } else if (variantId) {
@@ -191,15 +219,9 @@ export default function ProductManagement() {
         await updateProductImage(productId, "", false)
       }
 
-      // Refresh products list
-      const updatedProducts = await getAllProducts()
-      setProducts(updatedProducts)
-
-      // Notify other components about the update
+      await loadData()
       window.dispatchEvent(new CustomEvent("productsUpdated"))
-
-      console.log("[v0] Image deletion successful")
-      alert("Image deleted successfully!")
+      alert("Image deleted successfully.")
     } catch (error) {
       console.error("[v0] Delete error:", error)
       alert(`Delete failed: ${error instanceof Error ? error.message : "Unknown error"}`)
@@ -208,13 +230,87 @@ export default function ProductManagement() {
     }
   }
 
-  const handleSaveChanges = () => {
+  const openCreateProductDialog = () => {
+    setProductFormMode("create")
+    setEditingProductId(null)
+    setProductFormData({
+      name: "",
+      description: "",
+      category: "",
+      slug: "",
+      featured: false,
+    })
+    setProductFormOpen(true)
+  }
+
+  const openEditProductDialog = (product: Product) => {
+    setProductFormMode("edit")
+    setEditingProductId(product.id)
+    setProductFormData({
+      name: product.name,
+      description: product.description,
+      category: product.category,
+      slug: product.slug,
+      featured: product.featured,
+    })
+    setProductFormOpen(true)
+  }
+
+  const handleProductSave = async () => {
+    const name = productFormData.name.trim()
+    const description = productFormData.description.trim()
+    const category = productFormData.category.trim()
+    const slug = toSlug(productFormData.slug || productFormData.name)
+
+    if (!name || !description || !category || !slug) {
+      alert("Please fill in product name, description, category, and slug.")
+      return
+    }
+
     setIsLoading(true)
-    console.log("[v0] Saving product changes")
-    setTimeout(() => {
+
+    try {
+      if (productFormMode === "create") {
+        await createProduct({
+          name,
+          description,
+          category,
+          slug,
+          featured: productFormData.featured,
+          image_url: null,
+          preview_image_url: null,
+          specifications: {},
+        })
+      } else if (editingProductId) {
+        await updateProductDetails(editingProductId, {
+          name,
+          description,
+          category,
+          slug,
+          featured: productFormData.featured,
+        })
+      }
+
+      await loadData()
+      window.dispatchEvent(new CustomEvent("productsUpdated"))
+      setProductFormOpen(false)
+      alert(`Product ${productFormMode === "create" ? "created" : "updated"} successfully.`)
+    } catch (error) {
+      console.error("[v0] Product save error:", error)
+      alert(`Failed to save product: ${error instanceof Error ? error.message : "Unknown error"}`)
+    } finally {
       setIsLoading(false)
-      alert("Product changes saved successfully!")
-    }, 1000)
+    }
+  }
+
+  const handleRefreshData = async () => {
+    setIsLoading(true)
+    try {
+      await loadData()
+      alert("Product data refreshed.")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const handleManageVariants = (product: Product) => {
@@ -223,8 +319,110 @@ export default function ProductManagement() {
   }
 
   const handleVariantsUpdate = async () => {
-    const updatedProducts = await getAllProducts()
-    setProducts(updatedProducts)
+    await loadData()
+    window.dispatchEvent(new CustomEvent("productsUpdated"))
+  }
+
+  const handleBulkUploadClick = () => {
+    bulkImageInputRef.current?.click()
+  }
+
+  const findProductForFileName = (fileName: string) => {
+    const baseName = toSlug(fileName.replace(/\.[^/.]+$/, ""))
+    return (
+      products.find((product) => product.slug === baseName) ||
+      products.find((product) => baseName.includes(product.slug) || product.slug.includes(baseName))
+    )
+  }
+
+  const handleBulkImageInputChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || [])
+    if (files.length === 0) return
+
+    setIsLoading(true)
+
+    let uploaded = 0
+    let skipped = 0
+
+    try {
+      for (const file of files) {
+        const matchedProduct = findProductForFileName(file.name)
+        if (!matchedProduct) {
+          skipped += 1
+          continue
+        }
+
+        await handleImageUpload(matchedProduct.id, null, file, false, false)
+        uploaded += 1
+      }
+
+      await loadData()
+      window.dispatchEvent(new CustomEvent("productsUpdated"))
+      alert(`Bulk upload complete. Uploaded: ${uploaded}, Skipped (no product match): ${skipped}.`)
+    } catch (error) {
+      console.error("[v0] Bulk upload error:", error)
+      alert(`Bulk upload failed: ${error instanceof Error ? error.message : "Unknown error"}`)
+    } finally {
+      setIsLoading(false)
+      event.target.value = ""
+    }
+  }
+
+  const handleGenerateVariants = async () => {
+    const productsWithoutVariants = filteredProducts.filter((product) => !product.variants || product.variants.length === 0)
+    if (productsWithoutVariants.length === 0) {
+      alert("All products in this filter already have variants.")
+      return
+    }
+
+    setIsLoading(true)
+    let created = 0
+    let failed = 0
+
+    try {
+      for (const product of productsWithoutVariants) {
+        try {
+          await createProductVariant(product.id, {
+            variant_name: `${product.name} Variant 1`,
+            quantity: 0,
+            display_order: 0,
+          })
+          created += 1
+        } catch (error) {
+          console.error("[v0] Failed to create variant for product:", product.id, error)
+          failed += 1
+        }
+      }
+
+      await loadData()
+      window.dispatchEvent(new CustomEvent("productsUpdated"))
+      alert(`Variant generation complete. Created: ${created}, Failed: ${failed}.`)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleExportData = () => {
+    const header = ["id", "name", "slug", "category", "featured", "likes_count", "variant_count", "description"]
+    const rows = filteredProducts.map((product) => [
+      product.id,
+      product.name,
+      product.slug,
+      product.category,
+      product.featured,
+      product.likes_count ?? "",
+      product.variants?.length || 0,
+      product.description,
+    ])
+
+    const csv = [header.map(escapeCsv).join(","), ...rows.map((row) => row.map(escapeCsv).join(","))].join("\n")
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = "africa-stickers-products.csv"
+    a.click()
+    URL.revokeObjectURL(url)
   }
 
   const ProductCard = ({ product }: { product: Product }) => (
@@ -233,9 +431,7 @@ export default function ProductManagement() {
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
           <div className="flex-1 min-w-0">
             <CardTitle className="text-base sm:text-lg truncate">{product.name}</CardTitle>
-            <CardDescription className="text-xs sm:text-sm line-clamp-2">
-              High-quality {product.category} products for professional use
-            </CardDescription>
+            <CardDescription className="text-xs sm:text-sm line-clamp-2">{product.description}</CardDescription>
           </div>
           <Badge variant={product.featured ? "default" : "secondary"} className="self-start">
             {product.featured ? "Featured" : "Standard"}
@@ -260,12 +456,7 @@ export default function ProductManagement() {
                 <Eye className="w-3 h-3" />
                 <span className="hidden sm:inline">Preview</span>
               </Button>
-              <Button
-                size="sm"
-                variant="secondary"
-                className="gap-1 text-xs"
-                onClick={() => setSelectedProduct(product)}
-              >
+              <Button size="sm" variant="secondary" className="gap-1 text-xs" onClick={() => openEditProductDialog(product)}>
                 <Edit className="w-3 h-3" />
                 <span className="hidden sm:inline">Edit</span>
               </Button>
@@ -274,7 +465,7 @@ export default function ProductManagement() {
         </div>
 
         <div>
-          <Label className="text-xs font-medium">Preview Image (for product listing)</Label>
+          <Label className="text-xs font-medium">Preview Image (product listing)</Label>
           <div className="flex gap-2 mt-1">
             <div className="w-12 h-12 bg-muted rounded overflow-hidden flex-shrink-0 relative group">
               <img
@@ -367,7 +558,7 @@ export default function ProductManagement() {
 
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <Label className="text-sm font-medium">Variants</Label>
+            <Label className="text-sm font-medium">Variants ({product.variants?.length || 0})</Label>
             <Button
               size="sm"
               variant="default"
@@ -378,18 +569,11 @@ export default function ProductManagement() {
               Manage Variants
             </Button>
           </div>
-          <p className="text-xs text-muted-foreground">
-            Click "Manage Variants" to add, edit, and upload images for product variants
-          </p>
+          <p className="text-xs text-muted-foreground">Add and upload images for product variants.</p>
         </div>
 
         <div className="flex gap-2">
-          <Button
-            onClick={() => setSelectedProduct(product)}
-            variant="outline"
-            size="sm"
-            className="flex-1 gap-1 text-xs"
-          >
+          <Button onClick={() => openEditProductDialog(product)} variant="outline" size="sm" className="flex-1 gap-1 text-xs">
             <Edit className="w-3 h-3" />
             <span className="hidden sm:inline">Edit Details</span>
             <span className="sm:hidden">Edit</span>
@@ -435,18 +619,18 @@ export default function ProductManagement() {
             </div>
           </div>
           <div className="flex gap-2 shrink-0">
-            <Button onClick={() => setShowAddProduct(true)} variant="outline" className="gap-2 text-xs sm:text-sm">
+            <Button onClick={openCreateProductDialog} variant="outline" className="gap-2 text-xs sm:text-sm">
               <Plus className="w-4 h-4" />
               <span className="hidden sm:inline">Add Product</span>
               <span className="sm:hidden">Add</span>
             </Button>
             <Button
-              onClick={handleSaveChanges}
+              onClick={handleRefreshData}
               disabled={isLoading}
               className="gap-2 bg-primary hover:bg-primary/90 text-xs sm:text-sm"
             >
-              <Save className="w-4 h-4" />
-              {isLoading ? "Saving..." : "Save"}
+              <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} />
+              {isLoading ? "Working..." : "Refresh"}
             </Button>
           </div>
         </div>
@@ -456,7 +640,7 @@ export default function ProductManagement() {
         <div className="mb-6">
           <h2 className="text-xl sm:text-2xl font-bold mb-2">Manage Product Images & Details</h2>
           <p className="text-sm sm:text-base text-muted-foreground">
-            Upload and manage images for your products and their variants.
+            Upload and manage images, product details, variants, and bulk operations.
           </p>
         </div>
 
@@ -510,20 +694,43 @@ export default function ProductManagement() {
               Bulk Actions
             </CardTitle>
             <CardDescription className="text-xs sm:text-sm">
-              Perform actions on multiple products at once
+              Run bulk image uploads, create missing variants, and export product data.
             </CardDescription>
           </CardHeader>
           <CardContent>
+            <input
+              ref={bulkImageInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={handleBulkImageInputChange}
+            />
             <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
-              <Button variant="outline" className="gap-2 bg-transparent text-xs sm:text-sm">
+              <Button
+                variant="outline"
+                className="gap-2 bg-transparent text-xs sm:text-sm"
+                onClick={handleBulkUploadClick}
+                disabled={isLoading}
+              >
                 <Upload className="w-4 h-4" />
                 Bulk Image Upload
               </Button>
-              <Button variant="outline" className="gap-2 bg-transparent text-xs sm:text-sm">
+              <Button
+                variant="outline"
+                className="gap-2 bg-transparent text-xs sm:text-sm"
+                onClick={handleGenerateVariants}
+                disabled={isLoading}
+              >
                 <ImageIcon className="w-4 h-4" />
                 Generate Variants
               </Button>
-              <Button variant="outline" className="gap-2 bg-transparent text-xs sm:text-sm">
+              <Button
+                variant="outline"
+                className="gap-2 bg-transparent text-xs sm:text-sm"
+                onClick={handleExportData}
+                disabled={isLoading}
+              >
                 <Save className="w-4 h-4" />
                 Export Data
               </Button>
@@ -531,6 +738,88 @@ export default function ProductManagement() {
           </CardContent>
         </Card>
       </main>
+
+      <Dialog open={productFormOpen} onOpenChange={setProductFormOpen}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{productFormMode === "create" ? "Add Product" : "Edit Product"}</DialogTitle>
+            <DialogDescription>
+              {productFormMode === "create"
+                ? "Create a new product with details, slug, and category."
+                : "Update the selected product details."}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="product-name">Product Name</Label>
+              <Input
+                id="product-name"
+                value={productFormData.name}
+                onChange={(e) => {
+                  const nextName = e.target.value
+                  setProductFormData((prev) => ({
+                    ...prev,
+                    name: nextName,
+                    slug: productFormMode === "create" ? toSlug(nextName) : prev.slug,
+                  }))
+                }}
+                placeholder="Product name"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="product-category">Category</Label>
+              <Input
+                id="product-category"
+                value={productFormData.category}
+                onChange={(e) => setProductFormData((prev) => ({ ...prev, category: e.target.value }))}
+                placeholder="vinyl, reflective, decorative..."
+              />
+            </div>
+
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="product-slug">Slug</Label>
+              <Input
+                id="product-slug"
+                value={productFormData.slug}
+                onChange={(e) => setProductFormData((prev) => ({ ...prev, slug: toSlug(e.target.value) }))}
+                placeholder="product-slug"
+              />
+            </div>
+
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="product-description">Description</Label>
+              <Textarea
+                id="product-description"
+                rows={4}
+                value={productFormData.description}
+                onChange={(e) => setProductFormData((prev) => ({ ...prev, description: e.target.value }))}
+                placeholder="Product description"
+              />
+            </div>
+
+            <label className="flex items-center gap-2 md:col-span-2">
+              <input
+                type="checkbox"
+                checked={productFormData.featured}
+                onChange={(e) => setProductFormData((prev) => ({ ...prev, featured: e.target.checked }))}
+              />
+              <span className="text-sm">Featured product</span>
+            </label>
+          </div>
+
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setProductFormOpen(false)} disabled={isLoading}>
+              Cancel
+            </Button>
+            <Button onClick={handleProductSave} disabled={isLoading}>
+              <Save className="w-4 h-4 mr-2" />
+              {isLoading ? "Saving..." : productFormMode === "create" ? "Create Product" : "Save Changes"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {selectedProductForVariants && (
         <VariantManager

@@ -19,6 +19,11 @@ Run the SQL scripts in your Supabase SQL editor in this order:
 
 1. **001-create-products-table.sql** - Creates the products and product_variants tables
 2. **002-seed-initial-products.sql** - Seeds the database with initial product data
+3. **006-fix-variants-and-likes.sql** - Aligns variant schema with app code and adds likes counters
+
+If your database already exists and you only want to fix current issues, run:
+
+1. **006-fix-variants-and-likes.sql**
 
 ## 3. Storage Setup (Optional)
 

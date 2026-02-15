@@ -1,16 +1,21 @@
 import { notFound } from "next/navigation"
-import { ArrowLeft, Heart, Share2 } from "lucide-react"
+import { ArrowLeft, Share2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import Link from "next/link"
 import { getProductBySlug } from "@/lib/products-db"
 import type { Metadata } from "next"
+import { ProductLikeButton } from "@/components/product-like-button"
+import { ProductImageGallery } from "@/components/product-image-gallery"
 
 interface ProductPageProps {
   params: {
     slug: string
   }
 }
+
+export const dynamic = "force-dynamic"
+export const revalidate = 0
 
 // Removed getProductImages function as it's no longer needed
 
@@ -58,33 +63,23 @@ export default async function ProductPage({ params }: ProductPageProps) {
               <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
                 <Share2 className="w-4 h-4" />
               </Button>
-              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-yellow-600">
-                <Heart className="w-4 h-4" />
-              </Button>
+              <ProductLikeButton
+                productId={product.id}
+                initialLikes={product.likes_count}
+                size="sm"
+                className="text-muted-foreground hover:text-red-600"
+              />
             </div>
           </div>
         </div>
       </div>
 
-      {/* Product Image Carousel */}
-      <div className="relative h-80 bg-muted flex items-center justify-center overflow-hidden">
-        {productImageUrl ? (
-          <img src={productImageUrl || "/placeholder.svg"} alt={product.name} className="w-full h-full object-cover" />
-        ) : (
-          <div className="w-full h-full bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center">
-            <div className="w-32 h-32 bg-black/20 rounded-lg flex items-center justify-center">
-              <div className="w-16 h-16 bg-black/30 rounded"></div>
-            </div>
-          </div>
-        )}
-
-        {/* Pagination dots */}
-        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2">
-          <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-          <div className="w-2 h-2 bg-white/50 rounded-full"></div>
-          <div className="w-2 h-2 bg-white/50 rounded-full"></div>
-        </div>
-      </div>
+      <ProductImageGallery
+        productName={product.name}
+        mainImageUrl={productImageUrl}
+        previewImageUrl={previewImageUrl}
+        variants={product.variants || []}
+      />
 
       {/* Product Info */}
       <div className="container mx-auto px-4 py-6">
@@ -94,9 +89,12 @@ export default async function ProductPage({ params }: ProductPageProps) {
             <p className="text-muted-foreground">{product.description}</p>
           </div>
 
-          <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-yellow-600">
-            <Heart className="w-5 h-5" />
-          </Button>
+          <ProductLikeButton
+            productId={product.id}
+            initialLikes={product.likes_count}
+            size="sm"
+            className="text-muted-foreground hover:text-red-600"
+          />
         </div>
 
         {/* Tabs */}
@@ -805,40 +803,11 @@ export default async function ProductPage({ params }: ProductPageProps) {
           </TabsContent>
         </Tabs>
 
-        {/* Product Variants Grid */}
-        {product.variants && product.variants.length > 0 && (
-          <div className="mt-8">
-            <h3 className="font-semibold text-lg mb-4 text-foreground">Product Variants</h3>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-              {product.variants.map((variant) => (
-                <div
-                  key={variant.id}
-                  className="group relative bg-card border border-border rounded-lg overflow-hidden hover:shadow-lg transition-all duration-300 hover:border-[#D4AF37] cursor-pointer"
-                >
-                  <div className="aspect-square bg-muted flex items-center justify-center overflow-hidden">
-                    {variant.image_url ? (
-                      <img
-                        src={variant.image_url || "/placeholder.svg"}
-                        alt={`Variant ${variant.id}`}
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-[#D4AF37] to-[#B8941F] flex items-center justify-center">
-                        <div className="w-12 h-12 bg-black/20 rounded-lg"></div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
         {/* Contact CTA */}
         <div className="mt-8 bg-gradient-to-r from-yellow-400 to-yellow-600 rounded-lg p-6 text-center">
           <h3 className="font-bold text-xl text-black mb-2">Ready to Order?</h3>
           <p className="text-black/80 mb-4">Contact us for pricing and custom orders</p>
-          <Link href="https://wa.me/255123456789" target="_blank">
+          <Link href="https://wa.me/255715724727" target="_blank" rel="noopener noreferrer">
             <Button size="lg" className="bg-black text-white hover:bg-black/90">
               GET QUOTE
             </Button>
@@ -847,31 +816,4 @@ export default async function ProductPage({ params }: ProductPageProps) {
       </div>
     </div>
   )
-}
-
-export async function generateStaticParams() {
-  // This function needs to be updated to fetch slugs from the database
-  // For now, we'll keep the old implementation as a placeholder
-  // In a real application, you would use getProductSlugs() or similar from your DB functions
-  const dummyProducts = [
-    { slug: "color-vinyl-stickers" },
-    { slug: "frosted-stickers" },
-    { slug: "3m-reflective-tapes" },
-    { slug: "wood-marble-stickers" },
-    { slug: "t-shirt-heat-transfer-stickers" },
-    { slug: "tinted-film" },
-    { slug: "self-adhesive-stickers" },
-    { slug: "sticker-tools" },
-    { slug: "reflective-sheeting" },
-    { slug: "headlight-stickers" },
-    { slug: "egp-reflective-sheeting" },
-    { slug: "self-adhesive-vinyl" },
-    { slug: "tinted-stickers" },
-    { slug: "frost-stickers" },
-    { slug: "wrapping-stickers" },
-    { slug: "gold-chrome-mirror" },
-  ]
-  return dummyProducts.map((product) => ({
-    slug: product.slug,
-  }))
 }

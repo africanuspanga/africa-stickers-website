@@ -9,6 +9,12 @@ export interface Product {
   image_url: string | null
   preview_image_url: string | null
   featured: boolean
+  likes_count?: number
+  price?: number | null
+  stock_quantity?: number | null
+  is_active?: boolean
+  meta_title?: string | null
+  meta_description?: string | null
   specifications: Record<string, any>
   created_at: string
   updated_at: string
@@ -23,8 +29,23 @@ export interface ProductVariant {
   quantity: number
   image_url: string | null
   display_order: number
+  price?: number | null
+  stock_quantity?: number | null
+  is_active?: boolean
   created_at: string
   updated_at: string
+}
+
+export interface CreateProductInput {
+  name: string
+  description: string
+  category: string
+  slug: string
+  image_url?: string | null
+  preview_image_url?: string | null
+  featured?: boolean
+  likes_count?: number
+  specifications?: Record<string, any>
 }
 
 export async function getAllProducts(): Promise<Product[]> {
@@ -44,7 +65,9 @@ export async function getAllProducts(): Promise<Product[]> {
   const { data: variants, error: variantsError } = await supabase
     .from("product_variants")
     .select("*")
-    .order("product_id, display_order")
+    .order("product_id", { ascending: true })
+    .order("display_order", { ascending: true })
+    .order("id", { ascending: true })
 
   if (variantsError) {
     console.error("[v0] Error fetching variants:", variantsError)
@@ -133,6 +156,7 @@ export async function updateVariantImage(productId: number, variantId: number, i
       updated_at: new Date().toISOString(),
     })
     .eq("id", variantId)
+    .eq("product_id", productId)
 
   if (error) {
     console.error("[v0] Error updating variant image:", error)
@@ -140,15 +164,86 @@ export async function updateVariantImage(productId: number, variantId: number, i
   }
 }
 
-export async function createProduct(product: Omit<Product, "id" | "created_at" | "updated_at">): Promise<Product> {
+export async function createProduct(product: CreateProductInput): Promise<Product> {
   if (!supabase) {
     throw new Error("Supabase client not available. Please check environment variables.")
   }
 
-  const { data, error } = await supabase.from("products").insert([product]).select().single()
+  const payload: Record<string, any> = {
+    name: product.name,
+    description: product.description,
+    category: product.category,
+    slug: product.slug,
+    image_url: product.image_url ?? null,
+    preview_image_url: product.preview_image_url ?? null,
+    featured: product.featured ?? false,
+    specifications: product.specifications ?? {},
+  }
+
+  if (product.likes_count !== undefined) {
+    payload.likes_count = product.likes_count
+  }
+
+  const { data, error } = await supabase.from("products").insert([payload]).select().single()
 
   if (error) {
     console.error("[v0] Error creating product:", error)
+    throw error
+  }
+
+  return data
+}
+
+export async function updateProductDetails(productId: number, updates: Partial<CreateProductInput>): Promise<Product> {
+  if (!supabase) {
+    throw new Error("Supabase client not available. Please check environment variables.")
+  }
+
+  const payload: Record<string, any> = {
+    updated_at: new Date().toISOString(),
+  }
+
+  if (updates.name !== undefined) payload.name = updates.name
+  if (updates.description !== undefined) payload.description = updates.description
+  if (updates.category !== undefined) payload.category = updates.category
+  if (updates.slug !== undefined) payload.slug = updates.slug
+  if (updates.image_url !== undefined) payload.image_url = updates.image_url
+  if (updates.preview_image_url !== undefined) payload.preview_image_url = updates.preview_image_url
+  if (updates.featured !== undefined) payload.featured = updates.featured
+  if (updates.likes_count !== undefined) payload.likes_count = updates.likes_count
+  if (updates.specifications !== undefined) payload.specifications = updates.specifications
+
+  const { data, error } = await supabase.from("products").update(payload).eq("id", productId).select().single()
+
+  if (error) {
+    console.error("[v0] Error updating product details:", error)
+    throw error
+  }
+
+  return data
+}
+
+export async function createProductVariant(
+  productId: number,
+  input: Partial<Pick<ProductVariant, "variant_name" | "variant_name_sw" | "quantity" | "display_order" | "image_url">>,
+): Promise<ProductVariant> {
+  if (!supabase) {
+    throw new Error("Supabase client not available. Please check environment variables.")
+  }
+
+  const payload = {
+    product_id: productId,
+    variant_name: input.variant_name || `Variant ${Date.now()}`,
+    variant_name_sw: input.variant_name_sw || null,
+    quantity: input.quantity ?? 0,
+    display_order: input.display_order ?? 0,
+    image_url: input.image_url || null,
+  }
+
+  const { data, error } = await supabase.from("product_variants").insert([payload]).select().single()
+
+  if (error) {
+    console.error("[v0] Error creating product variant:", error)
     throw error
   }
 

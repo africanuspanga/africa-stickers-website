@@ -1,19 +1,8 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { Inter, JetBrains_Mono } from "next/font/google"
 import { Suspense } from "react"
 import "./globals.css"
 import { BusinessStructuredData } from "@/components/structured-data"
-
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
-})
-
-const jetbrainsMono = JetBrains_Mono({
-  subsets: ["latin"],
-  variable: "--font-jetbrains-mono",
-})
 
 export const metadata: Metadata = {
   title: "Africa Stickers - Premium Stickers & Vinyl Solutions in Tanzania",
@@ -78,7 +67,16 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`font-sans ${inter.variable} ${jetbrainsMono.variable}`}>
+      <body
+        className="font-sans"
+        style={
+          {
+            "--font-inter": "Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif",
+            "--font-jetbrains-mono":
+              '"JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+          } as React.CSSProperties
+        }
+      >
         <Suspense fallback={null}>{children}</Suspense>
         <BusinessStructuredData />
       </body>
