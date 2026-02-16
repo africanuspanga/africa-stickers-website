@@ -60,10 +60,12 @@ export function ProductImageGallery({ productName, mainImageUrl, previewImageUrl
 
   if (!selectedImageUrl) {
     return (
-      <div className="relative h-80 bg-muted flex items-center justify-center overflow-hidden">
-        <div className="w-full h-full bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center">
-          <div className="w-32 h-32 bg-black/20 rounded-lg flex items-center justify-center">
-            <div className="w-16 h-16 bg-black/30 rounded"></div>
+      <div className="relative w-full bg-muted">
+        <div className="relative mx-auto aspect-square w-full max-w-3xl overflow-hidden">
+          <div className="w-full h-full bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center">
+            <div className="w-32 h-32 bg-black/20 rounded-lg flex items-center justify-center">
+              <div className="w-16 h-16 bg-black/30 rounded"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -72,8 +74,14 @@ export function ProductImageGallery({ productName, mainImageUrl, previewImageUrl
 
   return (
     <div>
-      <div className="relative h-80 bg-muted flex items-center justify-center overflow-hidden">
-        <img src={selectedImageUrl || "/placeholder.svg"} alt={productName} className="w-full h-full object-cover" />
+      <div className="relative w-full bg-muted">
+        <div className="relative mx-auto aspect-square w-full max-w-3xl overflow-hidden">
+          <img
+            src={selectedImageUrl || "/placeholder.svg"}
+            alt={productName}
+            className="w-full h-full object-contain p-2 sm:p-4"
+          />
+        </div>
       </div>
 
       {images.length > 1 && (
@@ -89,7 +97,7 @@ export function ProductImageGallery({ productName, mainImageUrl, previewImageUrl
                 }`}
                 title={image.label}
               >
-                <img src={image.url || "/placeholder.svg"} alt={image.label} className="w-full h-full object-cover" />
+                <img src={image.url || "/placeholder.svg"} alt={image.label} className="w-full h-full object-contain bg-white" />
               </button>
             ))}
           </div>

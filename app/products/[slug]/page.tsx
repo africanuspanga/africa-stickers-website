@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation"
-import { ArrowLeft, Share2 } from "lucide-react"
+import { ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import Link from "next/link"
@@ -7,6 +7,7 @@ import { getProductBySlug } from "@/lib/products-db"
 import type { Metadata } from "next"
 import { ProductLikeButton } from "@/components/product-like-button"
 import { ProductImageGallery } from "@/components/product-image-gallery"
+import { ProductShareButton } from "@/components/product-share-button"
 
 interface ProductPageProps {
   params: {
@@ -60,9 +61,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
             </Link>
 
             <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-                <Share2 className="w-4 h-4" />
-              </Button>
+              <ProductShareButton productName={product.name} productSlug={product.slug} />
               <ProductLikeButton
                 productId={product.id}
                 initialLikes={product.likes_count}

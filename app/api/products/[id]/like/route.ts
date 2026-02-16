@@ -5,7 +5,13 @@ function randomLikes() {
   return Math.floor(Math.random() * 16) + 10
 }
 
-export async function POST(_request: Request, { params }: { params: { id: string } }) {
+type LikeAction = "like" | "unlike"
+
+interface LikeRequestBody {
+  action?: LikeAction
+}
+
+export async function POST(request: Request, { params }: { params: { id: string } }) {
   try {
     const supabase = await createClient()
 
@@ -18,6 +24,9 @@ export async function POST(_request: Request, { params }: { params: { id: string
       return NextResponse.json({ error: "Invalid product ID" }, { status: 400 })
     }
 
+    const body = (await request.json().catch(() => ({}))) as LikeRequestBody
+    const action: LikeAction = body.action === "unlike" ? "unlike" : "like"
+
     const { data: existing, error: fetchError } = await supabase
       .from("products")
       .select("likes_count")
@@ -29,7 +38,8 @@ export async function POST(_request: Request, { params }: { params: { id: string
       return NextResponse.json({ error: "Product not found" }, { status: 404 })
     }
 
-    const nextLikes = (typeof existing.likes_count === "number" ? existing.likes_count : randomLikes()) + 1
+    const currentLikes = typeof existing.likes_count === "number" ? existing.likes_count : randomLikes()
+    const nextLikes = action === "like" ? currentLikes + 1 : Math.max(0, currentLikes - 1)
 
     const { data: updated, error: updateError } = await supabase
       .from("products")
@@ -50,6 +60,7 @@ export async function POST(_request: Request, { params }: { params: { id: string
       success: true,
       product_id: updated.id,
       likes_count: updated.likes_count,
+      action,
     })
   } catch (error) {
     console.error("[v0] Like API error:", error)

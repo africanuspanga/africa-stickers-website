@@ -24,7 +24,14 @@ interface BurstHeart {
   color: string
 }
 
+interface LikeUpdatedDetail {
+  productId: number
+  likes: number
+  liked: boolean
+}
+
 const HEART_COLORS = ["#ef4444", "#f43f5e", "#ec4899", "#f97316", "#f59e0b", "#d946ef"]
+const PRODUCT_LIKE_UPDATED_EVENT = "africa-stickers-product-like-updated"
 
 function getRandomInitialLikes() {
   return Math.floor(Math.random() * 16) + 10
@@ -48,6 +55,27 @@ function createBurstHearts(): BurstHeart[] {
       color: HEART_COLORS[Math.floor(Math.random() * HEART_COLORS.length)],
     }
   })
+}
+
+function updateLocalLikedState(storageKey: string, value: boolean) {
+  if (typeof window === "undefined") return
+
+  if (value) {
+    window.localStorage.setItem(storageKey, "true")
+    return
+  }
+
+  window.localStorage.removeItem(storageKey)
+}
+
+function emitLikeUpdate(detail: LikeUpdatedDetail) {
+  if (typeof window === "undefined") return
+
+  window.dispatchEvent(
+    new CustomEvent<LikeUpdatedDetail>(PRODUCT_LIKE_UPDATED_EVENT, {
+      detail,
+    }),
+  )
 }
 
 export function ProductLikeButton({ productId, initialLikes, size = "sm", className }: ProductLikeButtonProps) {
@@ -81,6 +109,24 @@ export function ProductLikeButton({ productId, initialLikes, size = "sm", classN
     }
   }, [initialLikes])
 
+  useEffect(() => {
+    if (typeof window === "undefined") return
+
+    const handleLikeUpdated = (event: Event) => {
+      const customEvent = event as CustomEvent<LikeUpdatedDetail>
+      if (customEvent.detail?.productId !== productId) return
+
+      setLikes(customEvent.detail.likes)
+      setLiked(customEvent.detail.liked)
+    }
+
+    window.addEventListener(PRODUCT_LIKE_UPDATED_EVENT, handleLikeUpdated as EventListener)
+
+    return () => {
+      window.removeEventListener(PRODUCT_LIKE_UPDATED_EVENT, handleLikeUpdated as EventListener)
+    }
+  }, [productId])
+
   const triggerBurstAnimation = () => {
     setBurstHearts(createBurstHearts())
     setIsBursting(true)
@@ -97,35 +143,49 @@ export function ProductLikeButton({ productId, initialLikes, size = "sm", classN
     }, 900)
   }
 
-  const handleLike = async () => {
-    if (liked || isSubmitting) return
+  const handleLikeToggle = async () => {
+    if (isSubmitting) return
 
-    triggerBurstAnimation()
+    const previousLiked = liked
+    const previousLikes = likes
+    const nextLiked = !previousLiked
+    const optimisticLikes = Math.max(0, previousLikes + (nextLiked ? 1 : -1))
+
+    if (nextLiked) {
+      triggerBurstAnimation()
+    }
+
+    setLiked(nextLiked)
+    setLikes(optimisticLikes)
+    updateLocalLikedState(storageKey, nextLiked)
+    emitLikeUpdate({ productId, likes: optimisticLikes, liked: nextLiked })
     setIsSubmitting(true)
 
     try {
       const response = await fetch(`/api/products/${productId}/like`, {
         method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ action: nextLiked ? "like" : "unlike" }),
       })
 
-      if (response.ok) {
-        const result = await response.json()
-        if (typeof result.likes_count === "number") {
-          setLikes(result.likes_count)
-        } else {
-          setLikes((prev) => prev + 1)
-        }
-      } else {
-        setLikes((prev) => prev + 1)
+      if (!response.ok) {
+        throw new Error(`Like API failed with status ${response.status}`)
+      }
+
+      const result = (await response.json()) as { likes_count?: number }
+      if (typeof result.likes_count === "number") {
+        setLikes(result.likes_count)
+        emitLikeUpdate({ productId, likes: result.likes_count, liked: nextLiked })
       }
     } catch (error) {
-      console.error("[v0] Like request failed:", error)
-      setLikes((prev) => prev + 1)
+      console.error("[v0] Like toggle request failed:", error)
+      setLiked(previousLiked)
+      setLikes(previousLikes)
+      updateLocalLikedState(storageKey, previousLiked)
+      emitLikeUpdate({ productId, likes: previousLikes, liked: previousLiked })
     } finally {
-      setLiked(true)
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem(storageKey, "true")
-      }
       setIsSubmitting(false)
     }
   }
@@ -136,9 +196,9 @@ export function ProductLikeButton({ productId, initialLikes, size = "sm", classN
       variant="ghost"
       size={size}
       className={cn("relative overflow-visible", className)}
-      onClick={handleLike}
-      disabled={liked || isSubmitting}
-      aria-label={liked ? "You liked this product" : "Like this product"}
+      onClick={handleLikeToggle}
+      disabled={isSubmitting}
+      aria-label={liked ? "Unlike this product" : "Like this product"}
     >
       {isBursting && (
         <span
