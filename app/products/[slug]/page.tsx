@@ -8,6 +8,7 @@ import type { Metadata } from "next"
 import { ProductLikeButton } from "@/components/product-like-button"
 import { ProductImageGallery } from "@/components/product-image-gallery"
 import { ProductShareButton } from "@/components/product-share-button"
+import { normalizeProductSpecifications } from "@/lib/product-specifications"
 
 interface ProductPageProps {
   params: {
@@ -45,7 +46,8 @@ export default async function ProductPage({ params }: ProductPageProps) {
   }
 
   const productImageUrl = product.image_url
-  const previewImageUrl = product.preview_image_url
+  const dynamicSpecificationItems = normalizeProductSpecifications(product.specifications)
+  const hasSwahiliSpecificationItems = dynamicSpecificationItems.some((item) => item.label_sw || item.value_sw)
 
   return (
     <div className="min-h-screen bg-background">
@@ -76,7 +78,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
       <ProductImageGallery
         productName={product.name}
         mainImageUrl={productImageUrl}
-        previewImageUrl={previewImageUrl}
+        previewImageUrl={null}
         variants={product.variants || []}
       />
 
@@ -424,7 +426,43 @@ export default async function ProductPage({ params }: ProductPageProps) {
           <TabsContent value="parameters" className="space-y-4">
             <div className="bg-white rounded-lg border border-border p-6">
               <h3 className="font-semibold text-lg mb-4">Specifications</h3>
-              {product.slug === "color-vinyl-stickers" ? (
+              {dynamicSpecificationItems.length > 0 ? (
+                <div className="space-y-6">
+                  <div className="space-y-3">
+                    {dynamicSpecificationItems.map((item, index) => (
+                      <div
+                        key={`${item.label}-${index}`}
+                        className={`flex justify-between gap-3 py-2 ${index < dynamicSpecificationItems.length - 1 ? "border-b border-border" : ""}`}
+                      >
+                        <span className="text-muted-foreground">{item.label}:</span>
+                        <span className="font-medium text-right">{item.value}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {hasSwahiliSpecificationItems && (
+                    <div>
+                      <h4 className="font-medium text-base mb-3">Kiswahili</h4>
+                      <div className="space-y-3">
+                        {dynamicSpecificationItems.map((item, index) => {
+                          const label = item.label_sw || item.label
+                          const value = item.value_sw || item.value
+
+                          return (
+                            <div
+                              key={`${label}-${index}-sw`}
+                              className={`flex justify-between gap-3 py-2 ${index < dynamicSpecificationItems.length - 1 ? "border-b border-border" : ""}`}
+                            >
+                              <span className="text-muted-foreground">{label}:</span>
+                              <span className="font-medium text-right">{value}</span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : product.slug === "color-vinyl-stickers" ? (
                 <div className="space-y-3">
                   <div className="flex justify-between py-2 border-b border-border">
                     <span className="text-muted-foreground">Roll Size:</span>

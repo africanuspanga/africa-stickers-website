@@ -35,8 +35,14 @@ import {
   updateProductDetails,
   createProductVariant,
 } from "@/lib/products-db"
+import {
+  buildProductSpecificationsPayload,
+  normalizeProductSpecifications,
+  type ProductSpecificationItem,
+} from "@/lib/product-specifications"
 
 type ProductFormMode = "create" | "edit"
+type SpecificationRow = ProductSpecificationItem & { id: string }
 
 function toSlug(value: string) {
   return value
@@ -50,6 +56,26 @@ function toSlug(value: string) {
 function escapeCsv(value: string | number | boolean | null | undefined) {
   const text = value == null ? "" : String(value)
   return `"${text.replace(/"/g, '""')}"`
+}
+
+function createSpecificationRow(values: Partial<ProductSpecificationItem> = {}): SpecificationRow {
+  return {
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+    label: values.label || "",
+    value: values.value || "",
+    label_sw: values.label_sw || "",
+    value_sw: values.value_sw || "",
+  }
+}
+
+function toSpecificationRows(specifications: Product["specifications"]): SpecificationRow[] {
+  const normalized = normalizeProductSpecifications(specifications, { includeLegacyFlatObject: true })
+
+  if (normalized.length === 0) {
+    return [createSpecificationRow()]
+  }
+
+  return normalized.map((item) => createSpecificationRow(item))
 }
 
 export default function ProductManagement() {
@@ -75,6 +101,7 @@ export default function ProductManagement() {
     slug: "",
     featured: false,
   })
+  const [specificationRows, setSpecificationRows] = useState<SpecificationRow[]>([createSpecificationRow()])
 
   const loadData = async (showPageLoader = false) => {
     try {
@@ -240,6 +267,7 @@ export default function ProductManagement() {
       slug: "",
       featured: false,
     })
+    setSpecificationRows([createSpecificationRow()])
     setProductFormOpen(true)
   }
 
@@ -253,7 +281,35 @@ export default function ProductManagement() {
       slug: product.slug,
       featured: product.featured,
     })
+    setSpecificationRows(toSpecificationRows(product.specifications))
     setProductFormOpen(true)
+  }
+
+  const updateSpecificationRow = (rowId: string, field: keyof ProductSpecificationItem, value: string) => {
+    setSpecificationRows((prev) =>
+      prev.map((row) =>
+        row.id === rowId
+          ? {
+              ...row,
+              [field]: value,
+            }
+          : row,
+      ),
+    )
+  }
+
+  const addSpecificationRow = () => {
+    setSpecificationRows((prev) => [...prev, createSpecificationRow()])
+  }
+
+  const removeSpecificationRow = (rowId: string) => {
+    setSpecificationRows((prev) => {
+      if (prev.length === 1) {
+        return [createSpecificationRow()]
+      }
+
+      return prev.filter((row) => row.id !== rowId)
+    })
   }
 
   const handleProductSave = async () => {
@@ -261,6 +317,9 @@ export default function ProductManagement() {
     const description = productFormData.description.trim()
     const category = productFormData.category.trim()
     const slug = toSlug(productFormData.slug || productFormData.name)
+    const specifications = buildProductSpecificationsPayload(
+      specificationRows.map(({ id, ...specification }) => specification),
+    )
 
     if (!name || !description || !category || !slug) {
       alert("Please fill in product name, description, category, and slug.")
@@ -279,7 +338,7 @@ export default function ProductManagement() {
           featured: productFormData.featured,
           image_url: null,
           preview_image_url: null,
-          specifications: {},
+          specifications,
         })
       } else if (editingProductId) {
         await updateProductDetails(editingProductId, {
@@ -288,6 +347,7 @@ export default function ProductManagement() {
           category,
           slug,
           featured: productFormData.featured,
+          specifications,
         })
       }
 
@@ -745,8 +805,8 @@ export default function ProductManagement() {
             <DialogTitle>{productFormMode === "create" ? "Add Product" : "Edit Product"}</DialogTitle>
             <DialogDescription>
               {productFormMode === "create"
-                ? "Create a new product with details, slug, and category."
-                : "Update the selected product details."}
+                ? "Create a new product with details, slug, category, and specifications."
+                : "Update the selected product details and specifications."}
             </DialogDescription>
           </DialogHeader>
 
@@ -797,6 +857,89 @@ export default function ProductManagement() {
                 onChange={(e) => setProductFormData((prev) => ({ ...prev, description: e.target.value }))}
                 placeholder="Product description"
               />
+            </div>
+
+            <div className="space-y-3 md:col-span-2">
+              <div className="flex items-center justify-between gap-2">
+                <Label>Specifications (English + Kiswahili)</Label>
+                <Button type="button" variant="outline" size="sm" className="gap-1 bg-transparent" onClick={addSpecificationRow}>
+                  <Plus className="w-3 h-3" />
+                  Add Specification
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Add each spec in both languages. English is required; Kiswahili is optional but recommended.
+              </p>
+
+              <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+                {specificationRows.map((specificationRow, index) => (
+                  <div key={specificationRow.id} className="rounded-md border border-border p-3 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-medium text-muted-foreground">Specification {index + 1}</p>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 px-2 text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
+                        onClick={() => removeSpecificationRow(specificationRow.id)}
+                      >
+                        <Trash2 className="w-3 h-3 mr-1" />
+                        Remove
+                      </Button>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label htmlFor={`spec-en-label-${specificationRow.id}`} className="text-xs">
+                          English Label
+                        </Label>
+                        <Input
+                          id={`spec-en-label-${specificationRow.id}`}
+                          value={specificationRow.label}
+                          onChange={(e) => updateSpecificationRow(specificationRow.id, "label", e.target.value)}
+                          placeholder="Roll Size"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label htmlFor={`spec-en-value-${specificationRow.id}`} className="text-xs">
+                          English Value
+                        </Label>
+                        <Input
+                          id={`spec-en-value-${specificationRow.id}`}
+                          value={specificationRow.value}
+                          onChange={(e) => updateSpecificationRow(specificationRow.id, "value", e.target.value)}
+                          placeholder="1.22 x 45 m"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label htmlFor={`spec-sw-label-${specificationRow.id}`} className="text-xs">
+                          Kiswahili Label
+                        </Label>
+                        <Input
+                          id={`spec-sw-label-${specificationRow.id}`}
+                          value={specificationRow.label_sw || ""}
+                          onChange={(e) => updateSpecificationRow(specificationRow.id, "label_sw", e.target.value)}
+                          placeholder="Ukubwa wa Roll"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label htmlFor={`spec-sw-value-${specificationRow.id}`} className="text-xs">
+                          Kiswahili Value
+                        </Label>
+                        <Input
+                          id={`spec-sw-value-${specificationRow.id}`}
+                          value={specificationRow.value_sw || ""}
+                          onChange={(e) => updateSpecificationRow(specificationRow.id, "value_sw", e.target.value)}
+                          placeholder="1.22 x 45 m"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
 
             <label className="flex items-center gap-2 md:col-span-2">
